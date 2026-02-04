@@ -165,7 +165,9 @@ export default function TeamMembersPage() {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <label className="block text-sm font-medium text-foreground">User role</label>
-              <Info className="w-4 h-4 text-muted-foreground cursor-help" title="Select the role for this user" />
+              <div title="Select the role for this user">
+                <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+              </div>
             </div>
 
             <div className="space-y-2">

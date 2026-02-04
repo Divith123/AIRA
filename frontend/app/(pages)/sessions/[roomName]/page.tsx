@@ -46,7 +46,6 @@ import {
   apiFetch,
 } from "../../../../lib/api";
 import { cn } from "../../../../lib/utils";
-import { formatDuration } from "../../../../lib/utils";
 
 // Helper for formatting time
 const formatTime = (timestamp: number) => {
@@ -58,6 +57,24 @@ const formatTime = (timestamp: number) => {
     minute: "2-digit",
     second: "2-digit",
   });
+};
+
+// Helper for formatting duration
+const formatDuration = (milliseconds: number) => {
+  if (!milliseconds || milliseconds <= 0) return "0s";
+  
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  } else if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  } else {
+    return `${seconds}s`;
+  }
 };
 
 // Helper for getting track icon
@@ -434,7 +451,9 @@ export default function RoomDetailPage() {
                                   <span className="font-semibold text-foreground flex items-center gap-1.5">
                                     {participant.identity}
                                     {participant.is_publisher && (
-                                      <Shield className="w-3 h-3 text-amber-500" title="Publisher" />
+                                      <div title="Publisher">
+                                        <Shield className="w-3 h-3 text-amber-500" />
+                                      </div>
                                     )}
                                   </span>
                                   {participant.name && (
@@ -564,11 +583,11 @@ export default function RoomDetailPage() {
                     </div>
                     <div className="flex items-center justify-between text-sm py-2 border-b border-border/40">
                       <span className="text-muted-foreground">Max Participants</span>
-                      <span className="font-medium">{room?.max_participants || "Unlimited"}</span>
+                      <span className="font-medium">Unlimited</span>
                     </div>
                     <div className="flex items-center justify-between text-sm py-2 border-b border-border/40">
                       <span className="text-muted-foreground">Empty Timeout</span>
-                      <span className="font-medium">{room?.empty_timeout ? `${room.empty_timeout}s` : "Default"}</span>
+                      <span className="font-medium">Default</span>
                     </div>
                     <div className="flex items-center justify-between text-sm py-2 border-b border-border/40">
                       <span className="text-muted-foreground">Created At</span>
@@ -626,7 +645,6 @@ export default function RoomDetailPage() {
         isOpen={permissionsModalOpen}
         onClose={() => setPermissionsModalOpen(false)}
         title="Participant Permissions"
-        description={`Configure what ${selectedParticipant?.identity} is allowed to do.`}
         footer={
           <div className="flex justify-end gap-3 p-4 bg-muted/20 border-t border-border/60">
             <Button variant="ghost" onClick={() => setPermissionsModalOpen(false)}>
@@ -700,7 +718,6 @@ export default function RoomDetailPage() {
           setJoinIdentity("");
         }}
         title="Join Session"
-        description="Generate a secure access token to join this live room."
         footer={
           !generatedToken && (
             <div className="flex justify-end gap-3 p-4 bg-muted/20 border-t border-border/60">
@@ -810,7 +827,6 @@ export default function RoomDetailPage() {
         isOpen={deleteModalOpen}
         onClose={() => setDeleteModalOpen(false)}
         title="Terminate Session"
-        description="Warning: This will immediately disconnect all active participants and destroy the room."
         footer={
           <div className="flex justify-end gap-3 p-4 bg-muted/20 border-t border-border/60">
             <Button variant="ghost" onClick={() => setDeleteModalOpen(false)}>

@@ -302,8 +302,7 @@ export async function getMe(): Promise<User> {
             return {
                 id: "dev-user",
                 email: "admin@relatim.io",
-                name: "Developer Admin",
-                avatar: ""
+                name: "Developer Admin"
             };
         }
         throw error;
@@ -419,14 +418,12 @@ export async function createAgent(projectId: string, agent: Partial<Agent>): Pro
         if (error.status === 404 || error.message?.includes("404")) {
             const mockAgent: Agent = {
                 id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                project_id: projectId,
                 name: agent.name || "New Agent",
                 description: agent.description || "",
                 instructions: "",
                 model: "openai/gpt-4",
                 voice: "default",
                 created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
                 status: "active",
             };
             return mockAgent;

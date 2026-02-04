@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DashboardLayout } from "../../../components/layouts/DashboardLayout";
 import Header from "../../components/Header";
 import { Button } from "../../../components/ui/Button";
@@ -14,7 +14,12 @@ import {
 } from "lucide-react";
 
 export default function SandboxPage() {
-  const projectName = localStorage.getItem("projectName") || "Relatim";
+  const [projectName, setProjectName] = useState("Relatim");
+
+  useEffect(() => {
+    const name = localStorage.getItem("projectName") || "Relatim";
+    setProjectName(name);
+  }, []);
 
   return (
     <DashboardLayout>
