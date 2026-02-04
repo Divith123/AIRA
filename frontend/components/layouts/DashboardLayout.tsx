@@ -47,7 +47,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
 
             <div className="hidden md:block w-[260px] fixed inset-y-0 left-0 z-30">
-                <Sidebar user={user} className="w-full h-full" />
+                <Sidebar user={user} />
             </div>
 
 
@@ -58,11 +58,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                         onClick={() => setIsSidebarOpen(false)}
                     />
                     <div className="absolute inset-y-0 left-0 w-[260px] animate-slide-right">
-                        <Sidebar
-                            user={user}
-                            onClose={() => setIsSidebarOpen(false)}
-                            className="w-full h-full shadow-2xl"
-                        />
+                        <Sidebar user={user} />
                         <button
                             onClick={() => setIsSidebarOpen(false)}
                             className="absolute top-4 right-[-40px] p-2 bg-surface border border-white/10 rounded-lg text-foreground shadow-lg"
