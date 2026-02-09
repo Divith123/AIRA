@@ -1,13 +1,7 @@
 use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
-use reqwest;
-use serde_json::json;
-use std::env;
-use chrono::{Utc, Duration};
 
-use crate::entity::{rooms, prelude::*};
-use crate::models::livekit::{CreateRoomRequest, RoomResponse, ParticipantResponse, ListRoomsResponse};
-use crate::utils::jwt::{Claims, create_livekit_api_jwt};
+use crate::models::livekit::{CreateRoomRequest, RoomResponse, ParticipantResponse};
+use crate::utils::jwt::Claims;
 use crate::AppState;
 
 pub async fn create_room(
@@ -19,56 +13,23 @@ pub async fn create_room(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let livekit_url = env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string());
-    let api_key = env::var("LIVEKIT_API_KEY").expect("LIVEKIT_API_KEY must be set");
-    let api_secret = env::var("LIVEKIT_API_SECRET").expect("LIVEKIT_API_SECRET must be set");
-
-    let video_grants = json!({
-        "roomCreate": true,
-        "roomJoin": true,
-        "roomAdmin": true,
-        "roomRecord": true,
-        "roomList": true
-    });
-    let ingress_grants = json!({});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/twirp/livekit.RoomService/CreateRoom", livekit_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&req)
-        .send()
+    let room = state.lk_service.create_room(
+        &req.name, 
+        req.empty_timeout.unwrap_or(0), 
+        req.max_participants.unwrap_or(0)
+    )
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if !response.status().is_success() {
-        return Err(StatusCode::from_u16(response.status().as_u16()).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR));
-    }
-
-    let room: RoomResponse = response.json().await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Store in DB
-    let room_model = rooms::ActiveModel {
-        room_name: Set(req.name.clone()),
-        room_sid: Set(Some(room.sid.clone())),
-        max_participants: Set(Some(room.max_participants as i32)),
-        empty_timeout: Set(Some(room.empty_timeout as i32)),
-        ..Default::default()
-    };
-
-    let _result = room_model.insert(&state.db).await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(room))
+    Ok(Json(RoomResponse {
+        sid: room.sid,
+        name: room.name,
+        empty_timeout: room.empty_timeout,
+        max_participants: room.max_participants,
+        creation_time: room.creation_time as i64,
+        num_participants: room.num_participants,
+        active_recording: room.active_recording,
+    }))
 }
 
 pub async fn list_rooms(
@@ -79,42 +40,21 @@ pub async fn list_rooms(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let livekit_url = env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string());
-
-    let video_grants = json!({
-        "roomCreate": true,
-        "roomJoin": true,
-        "roomAdmin": true,
-        "roomRecord": true,
-        "roomList": true
-    });
-    let ingress_grants = json!({});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/twirp/livekit.RoomService/ListRooms", livekit_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({}))
-        .send()
+    let rooms = state.lk_service.list_rooms()
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    let list_response: ListRoomsResponse = response.json().await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
-    Ok(Json(list_response.rooms))
+    let response = rooms.into_iter().map(|room| RoomResponse {
+        sid: room.sid,
+        name: room.name,
+        empty_timeout: room.empty_timeout,
+        max_participants: room.max_participants,
+        creation_time: room.creation_time as i64,
+        num_participants: room.num_participants,
+        active_recording: room.active_recording,
+    }).collect();
+
+    Ok(Json(response))
 }
 
 pub async fn delete_room(
@@ -126,37 +66,9 @@ pub async fn delete_room(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let livekit_url = env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string());
-
-    let video_grants = json!({
-        "roomCreate": true,
-        "roomJoin": true,
-        "roomAdmin": true,
-        "roomRecord": true,
-        "roomList": true
-    });
-    let ingress_grants = json!({});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/twirp/livekit.RoomService/DeleteRoom", livekit_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({"room": room_name}))
-        .send()
+    state.lk_service.delete_room(&room_name)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -170,42 +82,19 @@ pub async fn list_participants(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let livekit_url = env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string());
-
-    let video_grants = json!({
-        "roomCreate": true,
-        "roomJoin": true,
-        "roomAdmin": true,
-        "roomRecord": true,
-        "roomList": true
-    });
-    let ingress_grants = json!({});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/twirp/livekit.RoomService/ListParticipants", livekit_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({"room": room_name}))
-        .send()
+    let participants = state.lk_service.list_participants(&room_name)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
+    let response = participants.into_iter().map(|p| ParticipantResponse {
+        sid: p.sid,
+        identity: p.identity,
+        state: p.state.to_string(), 
+        joined_at: p.joined_at as u64,
+        name: Some(p.name),
+    }).collect();
 
-    let participants: Vec<ParticipantResponse> = response.json().await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(participants))
+    Ok(Json(response))
 }
 
 pub async fn remove_participant(
@@ -217,37 +106,31 @@ pub async fn remove_participant(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let livekit_url = env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string());
-
-    let video_grants = json!({
-        "roomCreate": true,
-        "roomJoin": true,
-        "roomAdmin": true,
-        "roomRecord": true,
-        "roomList": true
-    });
-    let ingress_grants = json!({});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/twirp/livekit.RoomService/RemoveParticipant", livekit_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({"room": room_name, "identity": identity}))
-        .send()
+    state.lk_service.remove_participant(&room_name, &identity)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn get_livekit_stats(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+) -> Result<Json<crate::models::livekit::LiveKitStatsResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    let rooms = state.lk_service.list_rooms()
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let active_rooms = rooms.len() as i32;
+    let total_participants = rooms.iter().map(|r| r.num_participants as i32).sum();
+
+    Ok(Json(crate::models::livekit::LiveKitStatsResponse {
+        active_rooms,
+        total_participants,
+        status: "healthy".to_string(),
+    }))
 }

@@ -15,6 +15,7 @@ use crate::AppState;
 pub async fn create_agent(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path(project_id): axum::extract::Path<String>,
     Json(req): Json<CreateAgentRequest>,
 ) -> Result<Json<AgentResponse>, StatusCode> {
     if !claims.is_admin {
@@ -35,6 +36,7 @@ pub async fn create_agent(
         auto_restart_policy: Set(req.auto_restart_policy),
         resource_limits: Set(json!(req.resource_limits)),
         is_enabled: Set(true),
+        project_id: Set(Some(project_id)),
         ..Default::default()
     };
 
@@ -61,7 +63,7 @@ pub async fn create_agent(
 pub async fn update_agent(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
-    axum::extract::Path(agent_id): axum::extract::Path<String>,
+    axum::extract::Path((project_id, agent_id)): axum::extract::Path<(String, String)>,
     Json(req): Json<UpdateAgentRequest>,
 ) -> Result<Json<AgentResponse>, StatusCode> {
     if !claims.is_admin {
@@ -70,6 +72,7 @@ pub async fn update_agent(
 
     let agent = agents::Entity::find()
         .filter(agents::Column::AgentId.eq(agent_id))
+        .filter(agents::Column::ProjectId.eq(project_id))
         .one(&state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -128,12 +131,14 @@ pub async fn update_agent(
 pub async fn list_agents(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path(project_id): axum::extract::Path<String>,
 ) -> Result<Json<Vec<AgentResponse>>, StatusCode> {
     if !claims.is_admin {
         return Err(StatusCode::FORBIDDEN);
     }
 
     let agents = agents::Entity::find()
+        .filter(agents::Column::ProjectId.eq(project_id))
         .all(&state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -160,6 +165,7 @@ pub async fn list_agents(
 pub async fn deploy_agent(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path((project_id, agent_id)): axum::extract::Path<(String, String)>,
     Json(req): Json<DeployAgentRequest>,
 ) -> Result<Json<DeployAgentResponse>, StatusCode> {
     if !claims.is_admin {
@@ -167,8 +173,10 @@ pub async fn deploy_agent(
     }
 
     // Find the agent
+    // Find the agent
     let agent = agents::Entity::find()
-        .filter(agents::Column::AgentId.eq(&req.agent_id))
+        .filter(agents::Column::AgentId.eq(&agent_id))
+        .filter(agents::Column::ProjectId.eq(project_id))
         .one(&state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
@@ -280,7 +288,7 @@ async fn deploy_docker_agent(
     }))
 }
 
-async fn deploy_process_agent(
+pub async fn deploy_process_agent(
     state: &AppState,
     agent: &agents::Model,
     instance_id: &str,
@@ -316,7 +324,7 @@ async fn deploy_process_agent(
         cmd.arg(entrypoint);
     }
 
-    let child = cmd.spawn()
+    let mut child = cmd.spawn()
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let pid = child.id().ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
@@ -332,8 +340,36 @@ async fn deploy_process_agent(
         ..Default::default()
     };
 
-    instance_model.insert(&state.db).await
+    let instance_db = instance_model.insert(&state.db).await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Spawn a task to manage the process and log its output
+    let db = state.db.clone();
+    let instance_db_id = instance_db.id;
+    let agent_id_clone = agent.id;
+    let mut stdout = child.stdout.take().unwrap();
+    let mut stderr = child.stderr.take().unwrap();
+
+    tokio::spawn(async move {
+        use tokio::io::AsyncBufReadExt;
+        let mut stdout_reader = tokio::io::BufReader::new(stdout).lines();
+        let mut stderr_reader = tokio::io::BufReader::new(stderr).lines();
+
+        loop {
+            tokio::select! {
+                line = stdout_reader.next_line() => {
+                    if let Ok(Some(line)) = line {
+                        let _ = crate::handlers::agents::logs::store_agent_log_by_id(&db, agent_id_clone, instance_db_id, "INFO", &line).await;
+                    } else { break; }
+                }
+                line = stderr_reader.next_line() => {
+                    if let Ok(Some(line)) = line {
+                        let _ = crate::handlers::agents::logs::store_agent_log_by_id(&db, agent_id_clone, instance_db_id, "ERROR", &line).await;
+                    } else { break; }
+                }
+            }
+        }
+    });
 
     Ok(Json(DeployAgentResponse {
         instance_id: instance_id.to_string(),
@@ -364,4 +400,62 @@ async fn generate_agent_token(agent: &agents::Model) -> Result<String, StatusCod
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     Ok(token)
+}
+
+pub async fn get_agent(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path((project_id, agent_id)): axum::extract::Path<(String, String)>,
+) -> Result<Json<AgentResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let agent = agents::Entity::find()
+        .filter(agents::Column::AgentId.eq(agent_id))
+        .filter(agents::Column::ProjectId.eq(project_id))
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    Ok(Json(AgentResponse {
+        id: agent.id.to_string(),
+        agent_id: agent.agent_id,
+        display_name: agent.display_name,
+        image: agent.image,
+        entrypoint: agent.entrypoint,
+        env_vars: serde_json::from_value(agent.env_vars).unwrap_or_default(),
+        livekit_permissions: serde_json::from_value(agent.livekit_permissions).unwrap_or_default(),
+        default_room_behavior: agent.default_room_behavior,
+        auto_restart_policy: agent.auto_restart_policy,
+        resource_limits: serde_json::from_value(agent.resource_limits).unwrap_or_default(),
+        is_enabled: agent.is_enabled,
+        created_at: agent.created_at.to_string(),
+        updated_at: agent.updated_at.to_string(),
+    }))
+}
+
+pub async fn delete_agent(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path((project_id, agent_id)): axum::extract::Path<(String, String)>,
+) -> Result<StatusCode, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let agent = agents::Entity::find()
+        .filter(agents::Column::AgentId.eq(agent_id))
+        .filter(agents::Column::ProjectId.eq(project_id))
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    let active_model: agents::ActiveModel = agent.into();
+    active_model.delete(&state.db).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::NO_CONTENT)
 }

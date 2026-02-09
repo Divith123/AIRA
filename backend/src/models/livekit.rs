@@ -35,7 +35,9 @@ pub struct RoomResponse {
     pub sid: String,
     pub empty_timeout: u32,
     pub max_participants: u32,
-    pub creation_time: String,
+    pub creation_time: i64,
+    pub num_participants: u32,
+    pub active_recording: bool,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,11 +47,11 @@ pub struct CodecInfo {
 
 #[derive(Serialize, Deserialize)]
 pub struct ParticipantResponse {
+    pub sid: String,
     pub identity: String,
     pub name: Option<String>,
     pub state: String,
     pub joined_at: u64,
-    pub tracks: Vec<TrackInfo>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -57,4 +59,11 @@ pub struct TrackInfo {
     pub sid: String,
     pub name: String,
     pub kind: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct LiveKitStatsResponse {
+    pub active_rooms: i32,
+    pub total_participants: i32,
+    pub status: String,
 }

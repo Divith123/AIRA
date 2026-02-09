@@ -13,3 +13,17 @@ pub use super::agent_instances::Entity as AgentInstances;
 pub use super::agent_logs::Entity as AgentLogs;
 pub use super::agent_metrics::Entity as AgentMetrics;
 pub use super::agent_rooms::Entity as AgentRooms;
+
+pub use super::projects::Entity as Projects;
+pub use super::project_ai_configs::Entity as ProjectAIConfigs;
+pub use super::sessions::Entity as Sessions;
+pub use super::analytics_snapshots::Entity as AnalyticsSnapshots;
+pub use super::sip_trunks::Entity as SipTrunks;
+pub use super::dispatch_rules::Entity as DispatchRules;
+pub use super::room_templates::Entity as RoomTemplates;
+pub use super::layout_templates::Entity as LayoutTemplates;
+pub use super::auto_recording_rules::Entity as AutoRecordingRules;
+pub use super::service_accounts::Entity as ServiceAccounts;
+pub use super::storage_configs::Entity as StorageConfigs;
+pub use super::regions::Entity as Regions;
+pub use super::roles::Entity as Roles;

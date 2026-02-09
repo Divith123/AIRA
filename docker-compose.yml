@@ -1,0 +1,88 @@
+services:
+  # ==========================================================================
+  # BACKEND - Rust API Server
+  # ==========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: livekit-admin-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - LIVEKIT_URL=http://livekit-core:7880
+      - LIVEKIT_INGRESS_URL=http://livekit-core:8081
+      - LIVEKIT_EGRESS_URL=http://livekit-core:8083
+      - LIVEKIT_SIP_URL=http://livekit-core:8082
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - JWT_SECRET=${JWT_SECRET}
+      - RUST_LOG=${RUST_LOG:-info}
+    volumes:
+      - backend_data:/app/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - livekit-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ==========================================================================
+  # FRONTEND - Next.js Admin Dashboard
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: livekit-admin-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+      - NEXT_PUBLIC_LIVEKIT_URL=ws://livekit-core:7880
+      - NODE_ENV=production
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - livekit-network
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  livekit-network:
+    external: true
+    name: livekit-core_livekit-network
+
+volumes:
+  backend_data:
+    driver: local

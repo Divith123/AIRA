@@ -6,29 +6,11 @@ import Header from "../../../components/Header";
 import { Button } from "../../../../components/ui/Button";
 import { Modal } from "../../../../components/ui/Modal";
 import { Search, Copy, Trash2, Check } from "lucide-react";
-
-interface ApiKey {
-  id: string;
-  name: string;
-  prefix: string;
-  owner: string;
-  createdAt: string;
-  isOwned: boolean;
-}
-
-const mockKeys: ApiKey[] = [
-  {
-    id: "1",
-    name: "(none)",
-    prefix: "API2NpTxw5u6BaS",
-    owner: "Hariharan P",
-    createdAt: "Feb 2, 2026",
-    isOwned: true,
-  },
-];
+import { getApiKeys, createApiKey, deleteApiKey, getMe, ApiKey } from "../../../../lib/api";
 
 export default function ApiKeysPage() {
-  const [keys, setKeys] = useState<ApiKey[]>(mockKeys);
+  const [keys, setKeys] = useState<ApiKey[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"own" | "other">("own");
   const [showCreate, setShowCreate] = useState(false);
   const [keyDescription, setKeyDescription] = useState("");
@@ -36,35 +18,46 @@ export default function ApiKeysPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const ownKeys = keys.filter((k) => k.isOwned);
-  const otherKeys = keys.filter((k) => !k.isOwned);
+  const [me, setMe] = useState<any>(null);
+
+  React.useEffect(() => {
+    loadKeys();
+    getMe().then(setMe).catch(console.error);
+  }, []);
+
+  const loadKeys = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getApiKeys();
+      setKeys(data);
+    } catch (error) {
+      console.error("Failed to load keys:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const ownKeys = keys;
+  const otherKeys: ApiKey[] = [];
   const displayKeys = activeTab === "own" ? ownKeys : otherKeys;
 
   const filteredKeys = displayKeys.filter(
     (k) =>
       k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.prefix.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.owner.toLowerCase().includes(searchQuery.toLowerCase())
+      k.key_prefix?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleGenerateKey = () => {
+  const handleGenerateKey = async () => {
     if (!keyDescription.trim()) return;
 
-    const newKey: ApiKey = {
-      id: Date.now().toString(),
-      name: keyDescription,
-      prefix: "SK" + Math.random().toString(36).substring(2, 15).toUpperCase(),
-      owner: "Hariharan P",
-      createdAt: new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      }),
-      isOwned: true,
-    };
-
-    setGeneratedKey("sk_live_" + Math.random().toString(36).substring(2, 32));
-    setKeys([newKey, ...keys]);
+    try {
+      const resp = await createApiKey(keyDescription);
+      // Backend returns ApiKey with secret only on create
+      setGeneratedKey((resp as any).secret || (resp as any).secret_key || "Key created hidden");
+      await loadKeys();
+    } catch (error) {
+      alert("Failed to generate key");
+    }
   };
 
   const handleCopyKey = () => {
@@ -75,9 +68,14 @@ export default function ApiKeysPage() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this API key?")) {
-      setKeys(keys.filter((k) => k.id !== id));
+      try {
+        await deleteApiKey(id);
+        await loadKeys();
+      } catch (error) {
+        alert("Failed to delete API key");
+      }
     }
   };
 
@@ -93,33 +91,29 @@ export default function ApiKeysPage() {
       />
 
       <div className="p-4 md:p-8 animate-fade-in max-w-5xl">
-        {/* Section Header */}
         <div className="mb-8">
           <h2 className="text-2xl font-semibold text-foreground mb-2">API keys</h2>
           <p className="text-muted-foreground">Manage project access keys.</p>
         </div>
 
-        {/* Tabs and Search */}
         <div className="mb-6">
           <div className="flex items-center justify-between border-b border-border/40 mb-4">
             <div className="flex gap-6">
               <button
                 onClick={() => setActiveTab("own")}
-                className={`pb-3 px-1 font-medium text-sm transition-colors ${
-                  activeTab === "own"
-                    ? "text-foreground border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`pb-3 px-1 font-medium text-sm transition-colors ${activeTab === "own"
+                  ? "text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 Your API keys
               </button>
               <button
                 onClick={() => setActiveTab("other")}
-                className={`pb-3 px-1 font-medium text-sm transition-colors ${
-                  activeTab === "other"
-                    ? "text-foreground border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                className={`pb-3 px-1 font-medium text-sm transition-colors ${activeTab === "other"
+                  ? "text-foreground border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
+                  }`}
               >
                 Other API keys
               </button>
@@ -137,7 +131,6 @@ export default function ApiKeysPage() {
           </div>
         </div>
 
-        {/* Table */}
         <div className="rounded-lg border border-border/40 bg-white dark:bg-surface/30 overflow-hidden">
           <table className="w-full">
             <thead>
@@ -149,18 +142,21 @@ export default function ApiKeysPage() {
                   API Key
                 </th>
                 <th className="text-left px-6 py-4 text-muted-foreground text-xs font-semibold uppercase tracking-wider">
-                  Owner
-                </th>
-                <th className="text-left px-6 py-4 text-muted-foreground text-xs font-semibold uppercase tracking-wider">
                   Issued On
                 </th>
                 <th className="w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
-              {filteredKeys.length === 0 ? (
+              {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={4} className="px-6 py-12 text-center">
+                    <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
+                  </td>
+                </tr>
+              ) : filteredKeys.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-12 text-center">
                     <div className="text-muted-foreground">
                       {activeTab === "own"
                         ? "No API keys yet. Create one to get started."
@@ -178,11 +174,10 @@ export default function ApiKeysPage() {
                       {key.name}
                     </td>
                     <td className="px-6 py-4 text-sm font-mono text-muted-foreground">
-                      {key.prefix}
+                      {key.key_prefix}
                     </td>
-                    <td className="px-6 py-4 text-sm text-foreground">{key.owner}</td>
                     <td className="px-6 py-4 text-sm text-muted-foreground">
-                      {key.createdAt}
+                      {key.created_at}
                     </td>
                     <td className="px-6 py-4">
                       {activeTab === "own" && (
@@ -203,7 +198,6 @@ export default function ApiKeysPage() {
         </div>
       </div>
 
-      {/* Create API Key Modal */}
       <Modal
         isOpen={showCreate}
         onClose={() => {

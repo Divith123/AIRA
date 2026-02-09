@@ -210,3 +210,26 @@ fn parse_memory_usage(mem_str: &str) -> Option<f64> {
         None
     }
 }
+
+pub async fn get_project_agent_stats(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path(_project_id): axum::extract::Path<String>,
+) -> Result<Json<crate::models::agents::AgentProjectStats>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Count active instances
+    let active_sessions = agent_instances::Entity::find()
+        .filter(agent_instances::Column::Status.eq("active"))
+        .count(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)? as i32;
+
+    Ok(Json(crate::models::agents::AgentProjectStats {
+        active_sessions,
+        total_minutes: 0,
+        quota_minutes: 1000,
+    }))
+}

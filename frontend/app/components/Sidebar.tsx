@@ -28,6 +28,7 @@ import {
   Slack,
   BookOpen,
 } from "lucide-react";
+import { createProject } from "../../lib/api";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -50,6 +51,7 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
   const [supportOpen, setSupportOpen] = useState(false);
   const [userSettingsOpen, setUserSettingsOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [createProjectError, setCreateProjectError] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -98,12 +100,18 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
     }
   }, [telephonyOpen, settingsOpen, mounted]);
 
-  const handleCreateProject = () => {
+  const handleCreateProject = async () => {
     if (newProjectName.trim()) {
-      // TODO: Call API to create project
-      console.log("Creating project:", newProjectName);
-      setNewProjectName("");
-      setCreateProjectOpen(false);
+      try {
+        await createProject(newProjectName.trim());
+        // Optionally refresh projects list or navigate
+        setNewProjectName("");
+        setCreateProjectOpen(false);
+        setCreateProjectError(null);
+      } catch (error) {
+        console.error("Failed to create project:", error);
+        setCreateProjectError("Failed to create project. Please try again.");
+      }
     }
   };
 
@@ -338,7 +346,10 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
                       <Check className="w-4 h-4" />
                     </button>
                     <button 
-                      onClick={() => setCreateProjectOpen(true)}
+                      onClick={() => {
+                        setCreateProjectOpen(true);
+                        setCreateProjectError(null);
+                      }}
                       className="w-full text-left px-3 py-2 rounded-lg text-[13px] text-primary hover:bg-primary/5 font-medium"
                     >
                       + New Project
@@ -483,6 +494,9 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
                   autoFocus
                 />
+                {createProjectError && (
+                  <p className="text-red-500 text-xs">{createProjectError}</p>
+                )}
               </div>
             </div>
 

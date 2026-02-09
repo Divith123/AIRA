@@ -15,3 +15,17 @@ pub mod agent_instances;
 pub mod agent_logs;
 pub mod agent_metrics;
 pub mod agent_rooms;
+
+pub mod projects;
+pub mod project_ai_configs;
+pub mod sessions;
+pub mod analytics_snapshots;
+pub mod sip_trunks;
+pub mod dispatch_rules;
+pub mod room_templates;
+pub mod layout_templates;
+pub mod auto_recording_rules;
+pub mod service_accounts;
+pub mod storage_configs;
+pub mod regions;
+pub mod roles;

@@ -1,29 +1,37 @@
-mod config;
 mod handlers;
 mod routes;
 mod utils;
 mod models;
 mod entity;
+mod services;
 
 use axum::Router;
 use dotenvy::dotenv;
 use tokio::net::TcpListener;
-use config::database::connect_db;
-use routes::{auth_routes::auth_routes, livekit_routes, ingress_routes, egress_routes, sip_routes, config_routes, metrics_routes, agent_routes};
+use routes::{
+    auth, livekit, ingress, egress, sip, config as config_routes, metrics, agents,
+    projects, sessions, analytics, settings, templates, rules, regions, webhook
+};
+use services::livekit_service::LiveKitService;
 use axum::http::Method;
 use axum::middleware::Next;
 use axum::response::Response;
 use axum::body::Body as AxBody;
 use axum::http::HeaderValue;
+use std::sync::Arc;
+use std::env;
+use sea_orm::{Database, DatabaseConnection};
+use livekit_api::services::room::RoomClient;
+use livekit_api::services::egress::EgressClient;
+use livekit_api::services::ingress::IngressClient;
+use livekit_api::services::sip::SIPClient;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: sea_orm::DatabaseConnection,
+    pub db: DatabaseConnection,
     pub http_client: reqwest::Client,
+    pub lk_service: Arc<LiveKitService>,
 }
-
-use sea_orm::{Database, DatabaseConnection};
-use std::env;
 
 async fn run_migrations(db: &DatabaseConnection) {
     let pool = sqlx::SqlitePool::connect(&env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./livekit_admin.db?mode=rwc".to_string())).await.unwrap();
@@ -32,6 +40,8 @@ async fn run_migrations(db: &DatabaseConnection) {
         include_str!("../migrations/20260204092336_create_users_table.sql"),
         include_str!("../migrations/20260209100000_create_livekit_tables.sql"),
         include_str!("../migrations/20260209110000_create_agents_tables.sql"),
+        include_str!("../migrations/20260210000000_create_comprehensive_schema.sql"),
+        include_str!("../migrations/20260210000001_add_project_id_to_agents.sql"),
     ];
 
     for migration in migrations {
@@ -44,7 +54,15 @@ async fn run_migrations(db: &DatabaseConnection) {
 
 #[tokio::main]
 async fn main() {
+    // Load environment variables from parent directory (root .env file)
     dotenv().ok();
+    // Also try to load from parent directory if current directory doesn't have .env
+    if env::var("LIVEKIT_API_KEY").is_err() {
+        let parent_env = std::path::Path::new("..").join(".env");
+        if parent_env.exists() {
+            dotenvy::from_path(parent_env).ok();
+        }
+    }
 
     let db_url = env::var("DATABASE_URL").unwrap_or_else(|_| "sqlite://./livekit_admin.db?mode=rwc".to_string());
     let db = Database::connect(&db_url)
@@ -55,8 +73,21 @@ async fn main() {
     run_migrations(&db).await;
 
     let http_client = reqwest::Client::new();
+    let lk_service = match LiveKitService::new() {
+        Ok(service) => Arc::new(service),
+        Err(e) => {
+            println!("Warning: Failed to initialize LiveKit service: {}. Server will start but LiveKit features will not work.", e);
+            // Create a dummy service that returns errors for all operations
+            Arc::new(LiveKitService {
+                room_client: RoomClient::with_api_key("http://dummy", "dummy", "dummy"),
+                egress_client: EgressClient::with_api_key("http://dummy", "dummy", "dummy"),
+                ingress_client: IngressClient::with_api_key("http://dummy", "dummy", "dummy"),
+                sip_client: SIPClient::with_api_key("http://dummy", "dummy", "dummy"),
+            })
+        }
+    };
 
-    let state = AppState { db, http_client };
+    let state = AppState { db, http_client, lk_service };
 
     async fn cors_middleware(req: axum::http::Request<AxBody>, next: Next) -> Response {
         if req.method() == Method::OPTIONS {
@@ -85,14 +116,23 @@ async fn main() {
     }
 
     let app = Router::new()
-        .merge(auth_routes(state.clone()))
-        .merge(livekit_routes::routes())
-        .merge(ingress_routes::routes())
-        .merge(egress_routes::routes())
-        .merge(sip_routes::routes())
+        .route("/health", axum::routing::get(|| async { axum::Json(serde_json::json!({"status": "healthy"})) }))
+        .merge(auth::routes())
+        .merge(livekit::routes())
+        .merge(ingress::routes())
+        .merge(egress::routes())
+        .merge(sip::routes())
         .merge(config_routes::routes())
-        .merge(metrics_routes::routes())
-        .merge(agent_routes::routes())
+        .merge(metrics::routes())
+        .merge(agents::routes())
+        .merge(projects::routes())
+        .merge(sessions::routes())
+        .merge(analytics::routes())
+        .merge(settings::routes())
+        .merge(templates::routes())
+        .merge(rules::routes())
+        .merge(regions::routes())
+        .merge(webhook::routes())
         .with_state(state)
         .layer(axum::middleware::from_fn(cors_middleware));
 

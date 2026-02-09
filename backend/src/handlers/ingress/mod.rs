@@ -1,27 +1,46 @@
-use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
-use reqwest;
-use serde_json::json;
-use std::env;
-use base64::{engine::general_purpose::STANDARD, Engine};
+use axum::{extract::{State, Path}, http::StatusCode, Json};
+use sea_orm::{ActiveModelTrait, Set};
 
-use crate::entity::{ingress as db_ingress, prelude::*};
-use crate::models::ingress::{CreateIngressRequest, IngressResponse};
-use crate::utils::jwt::{Claims, create_livekit_api_jwt};
+use crate::entity::{ingress as db_ingress};
+use crate::models::ingress::*;
+use crate::utils::jwt::Claims;
 use crate::AppState;
+use livekit_protocol::IngressInput;
 
-fn get_livekit_url() -> String {
-    env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string())
-}
+pub async fn list_ingress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+) -> Result<Json<Vec<IngressResponse>>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
 
-fn get_ingress_url() -> String {
-    env::var("LIVEKIT_INGRESS_URL").unwrap_or_else(|_| "http://localhost:8081".to_string())
-}
+    let items = state.lk_service.list_ingress(None)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-fn get_auth_header() -> String {
-    let api_key = env::var("LIVEKIT_API_KEY").expect("LIVEKIT_API_KEY must be set");
-    let api_secret = env::var("LIVEKIT_API_SECRET").expect("LIVEKIT_API_SECRET must be set");
-    format!("Basic {}", STANDARD.encode(format!("{}:{}", api_key, api_secret)))
+    let response = items.into_iter().map(|i| IngressResponse {
+        ingress_id: i.ingress_id,
+        name: i.name,
+        stream_key: i.stream_key,
+        url: i.url,
+        input_type: i.input_type as i32,
+        room_name: i.room_name,
+        participant_identity: i.participant_identity,
+        participant_name: i.participant_name,
+        reusable: i.reusable,
+        state: i.state.map(|s| IngressStateResponse {
+            status: s.status.to_string(),
+            error: s.error,
+            room_id: s.room_id,
+            started_at: s.started_at,
+            ended_at: s.ended_at,
+            resource_id: s.resource_id,
+            tracks: vec![], // Future: Map tracks if needed
+        }),
+    }).collect();
+
+    Ok(Json(response))
 }
 
 pub async fn create_ingress(
@@ -33,87 +52,99 @@ pub async fn create_ingress(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let ingress_url = get_ingress_url();
+    let input_type = match req.input_type {
+        0 => IngressInput::RtmpInput,
+        1 => IngressInput::WhipInput,
+        2 => IngressInput::UrlInput,
+        _ => IngressInput::RtmpInput,
+    };
 
-    let video_grants = json!({});
-    let ingress_grants = json!({"admin": true});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/ingress/create", ingress_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&req)
-        .send()
+    let ingress = state.lk_service.create_ingress(input_type, &req.name, &req.room_name)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    let ingress: IngressResponse = response.json().await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // Store in DB
     let ingress_model = db_ingress::ActiveModel {
         name: Set(req.name.clone()),
-        input_type: Set(req.input_type),
-        room_name: Set(Some(req.room_name)),
-        stream_key: Set(ingress.stream_key.clone()),
-        url: Set(ingress.url.clone()),
+        input_type: Set(req.input_type.to_string()),
+        room_name: Set(Some(req.room_name.clone())),
+        stream_key: Set(Some(ingress.stream_key.clone())),
+        url: Set(Some(ingress.url.clone())),
         ..Default::default()
     };
 
-    let _result = ingress_model.insert(&state.db).await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let _ = ingress_model.insert(&state.db).await;
 
-    Ok(Json(ingress))
+    Ok(Json(IngressResponse {
+        ingress_id: ingress.ingress_id,
+        name: ingress.name,
+        stream_key: ingress.stream_key,
+        url: ingress.url,
+        input_type: req.input_type,
+        room_name: req.room_name,
+        participant_identity: ingress.participant_identity,
+        participant_name: ingress.participant_name,
+        reusable: ingress.reusable,
+        state: None,
+    }))
 }
 
-pub async fn list_ingress(
+pub async fn create_url_ingress(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
-) -> Result<Json<Vec<IngressResponse>>, StatusCode> {
+    Json(req): Json<CreateUrlIngressRequest>,
+) -> Result<Json<IngressResponse>, StatusCode> {
     if !claims.is_admin {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let ingress_url = get_ingress_url();
-
-    let video_grants = json!({});
-    let ingress_grants = json!({"admin": true});
-    let egress_grants = json!({});
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(video_grants, ingress_grants, egress_grants, sip_grants)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/ingress/list", ingress_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({}))
-        .send()
+    let ingress = state.lk_service.create_url_ingress(
+        &req.url,
+        &req.name,
+        &req.room_name,
+        &req.participant_identity,
+        &req.participant_name
+    )
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    // Store in DB
+    let ingress_model = db_ingress::ActiveModel {
+        name: Set(req.name.clone()),
+        input_type: Set("url".to_string()),
+        room_name: Set(Some(req.room_name.clone())),
+        url: Set(Some(ingress.url.clone())),
+        ..Default::default()
+    };
+
+    let _ = ingress_model.insert(&state.db).await;
+
+    Ok(Json(IngressResponse {
+        ingress_id: ingress.ingress_id,
+        name: ingress.name,
+        stream_key: ingress.stream_key,
+        url: ingress.url,
+        input_type: 2, // URL = 2
+        room_name: req.room_name,
+        participant_identity: ingress.participant_identity,
+        participant_name: ingress.participant_name,
+        reusable: ingress.reusable,
+        state: None,
+    }))
+}
+
+pub async fn delete_ingress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Path(ingress_id): Path<String>,
+) -> Result<StatusCode, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
     }
 
-    let ingresses: Vec<IngressResponse> = response.json().await
+    state.lk_service.delete_ingress(&ingress_id)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    Ok(Json(ingresses))
+    Ok(StatusCode::OK)
 }

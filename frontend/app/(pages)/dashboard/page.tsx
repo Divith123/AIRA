@@ -34,25 +34,21 @@ export default function DashboardPage() {
       // 1. Verify Auth First (Handled by global AuthContext now)
 
       // 2. Load Content
-      try {
-        const [dashData, timeseriesData, projectsData] = await Promise.all([
-          getAnalyticsDashboard(timeRange).catch(() => null),
-          getAnalyticsTimeseries(timeRange).catch(() => []),
-          getProjects().catch(() => []),
-        ]);
+      const [dashData, timeseriesData, projectsData] = await Promise.allSettled([
+        getAnalyticsDashboard(timeRange),
+        getAnalyticsTimeseries(timeRange),
+        getProjects(),
+      ]);
 
-        if (dashData) setDashboardData(dashData);
-        if (timeseriesData) setTimeseries(timeseriesData);
-        if (projectsData) {
-          setProjects(projectsData);
-          if (projectsData.length > 0 && !currentProject) {
-            setCurrentProject(projectsData[0]);
-            localStorage.setItem("projectId", projectsData[0].id);
-            localStorage.setItem("projectName", projectsData[0].name);
-          }
+      if (dashData.status === 'fulfilled') setDashboardData(dashData.value);
+      if (timeseriesData.status === 'fulfilled') setTimeseries(timeseriesData.value);
+      if (projectsData.status === 'fulfilled') {
+        setProjects(projectsData.value);
+        if (projectsData.value.length > 0 && !currentProject) {
+          setCurrentProject(projectsData.value[0]);
+          localStorage.setItem("projectId", projectsData.value[0].id);
+          localStorage.setItem("projectName", projectsData.value[0].name);
         }
-      } catch (e) {
-        console.warn("Failed to load non-critical data", e);
       }
 
     } catch (e) {

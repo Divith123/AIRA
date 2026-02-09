@@ -62,12 +62,12 @@ const formatTime = (timestamp: number) => {
 // Helper for formatting duration
 const formatDuration = (milliseconds: number) => {
   if (!milliseconds || milliseconds <= 0) return "0s";
-  
+
   const totalSeconds = Math.floor(milliseconds / 1000);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m ${seconds}s`;
   } else if (minutes > 0) {
@@ -317,15 +317,15 @@ export default function RoomDetailPage() {
               <RefreshCw className={cn("w-4.5 h-4.5", refreshing && "animate-spin")} />
             </button>
             <div className="h-4 w-px bg-border/60 mx-1" />
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setDeleteModalOpen(true)}
               className="border-red-500/20 text-red-500 hover:bg-red-500/10 hover:border-red-500/30"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Delete Room
             </Button>
-            <Button 
+            <Button
               onClick={() => setJoinModalOpen(true)}
               className="bg-[oklch(0.627_0.265_273.15)] hover:bg-[oklch(0.55_0.25_273.15)] text-white shadow-[0_0_20px_rgba(99,102,241,0.3)]"
             >
@@ -370,7 +370,7 @@ export default function RoomDetailPage() {
                   <Clock className="w-4 h-4 group-hover:text-primary transition-colors" />
                 </div>
                 <div className="text-2xl font-bold tracking-tight">
-                   {formatDuration(Date.now() - (room?.creation_time || Date.now() / 1000) * 1000)}
+                  {formatDuration(Date.now() - (room?.creation_time || Date.now() / 1000) * 1000)}
                 </div>
               </div>
 
@@ -399,7 +399,7 @@ export default function RoomDetailPage() {
                   <span className="text-sm font-mono text-muted-foreground truncate max-w-[140px]">
                     {room?.sid || "Loading..."}
                   </span>
-                  <button 
+                  <button
                     onClick={() => copyToClipboard(room?.sid || "")}
                     className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -422,7 +422,7 @@ export default function RoomDetailPage() {
                       LIVE
                     </span>
                   </div>
-                  
+
                   <div className="overflow-x-auto">
                     <table className="w-full text-left">
                       <thead>
@@ -467,7 +467,7 @@ export default function RoomDetailPage() {
                               <td className="px-6 py-4">
                                 <span className={cn(
                                   "inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight",
-                                  participant.state === "ACTIVE" 
+                                  participant.state === "ACTIVE"
                                     ? "bg-green-500/10 text-green-600 border border-green-500/20"
                                     : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20"
                                 )}>
@@ -596,41 +596,20 @@ export default function RoomDetailPage() {
                   </div>
                 </div>
 
-                {/* Real-time Metrics Card */}
+                {/* Node Details Card */}
                 <div className="bg-card/50 border border-border/60 rounded-2xl p-6 shadow-sm">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-5 flex items-center gap-2">
-                    <Activity className="w-3.5 h-3.5" />
-                    Infrastructure
+                    <Signal className="w-3.5 h-3.5" />
+                    Network
                   </h4>
                   <div className="space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-                        <span>CPU Utilization</span>
-                        <span className="text-primary">12%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary/60 w-[12%] rounded-full" />
-                      </div>
+                    <div className="flex items-center justify-between text-sm py-2 border-b border-border/40">
+                      <span className="text-muted-foreground">Region</span>
+                      <span className="font-medium">Auto (Local)</span>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <div className="flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground font-bold">
-                        <span>Memory Load</span>
-                        <span className="text-primary">342MB</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary/60 w-[24%] rounded-full" />
-                      </div>
-                    </div>
-                    <div className="pt-2">
-                      <div className="p-3 bg-muted/30 border border-border/40 rounded-xl flex items-center gap-3">
-                        <div className="p-2 bg-background rounded-lg border border-border/40 shadow-sm">
-                          <Cpu className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <div className="text-[10px] font-bold text-muted-foreground uppercase">Host Node</div>
-                          <div className="text-xs font-medium font-mono">livekit-production-01</div>
-                        </div>
-                      </div>
+                    <div className="flex items-center justify-between text-sm py-2 border-b border-border/40">
+                      <span className="text-muted-foreground">Protocol</span>
+                      <span className="font-medium">WebRTC</span>
                     </div>
                   </div>
                 </div>
@@ -650,8 +629,8 @@ export default function RoomDetailPage() {
             <Button variant="ghost" onClick={() => setPermissionsModalOpen(false)}>
               Discard
             </Button>
-            <Button 
-              onClick={handleUpdatePermissions} 
+            <Button
+              onClick={handleUpdatePermissions}
               disabled={actionLoading}
               className="bg-[oklch(0.627_0.265_273.15)] text-white"
             >
@@ -682,8 +661,8 @@ export default function RoomDetailPage() {
             >
               <div className={cn(
                 "mt-0.5 p-2 rounded-lg border transition-all duration-200",
-                permissions[key as keyof ParticipantPermissions] 
-                  ? "bg-primary/10 border-primary/20 text-primary" 
+                permissions[key as keyof ParticipantPermissions]
+                  ? "bg-primary/10 border-primary/20 text-primary"
                   : "bg-muted/50 border-border/40 text-muted-foreground"
               )}>
                 <Icon className="w-4 h-4" />
@@ -724,8 +703,8 @@ export default function RoomDetailPage() {
               <Button variant="ghost" onClick={() => setJoinModalOpen(false)}>
                 Cancel
               </Button>
-              <Button 
-                onClick={handleGenerateToken} 
+              <Button
+                onClick={handleGenerateToken}
                 disabled={actionLoading || !joinIdentity.trim()}
                 className="bg-[oklch(0.627_0.265_273.15)] text-white"
               >
@@ -850,7 +829,7 @@ export default function RoomDetailPage() {
             <div className="text-sm">
               <p className="font-semibold text-amber-900 mb-1">Destructive Action</p>
               <p className="text-amber-800/70 leading-relaxed text-xs">
-                Deleting <strong className="font-bold underline">{roomName}</strong> cannot be undone. 
+                Deleting <strong className="font-bold underline">{roomName}</strong> cannot be undone.
                 Recordings in progress will be terminated and saved sessions will remain in egress storage.
               </p>
             </div>

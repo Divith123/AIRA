@@ -5,16 +5,37 @@ use sea_orm::entity::prelude::*;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "users")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
-    pub id: Uuid,
+    #[sea_orm(primary_key, auto_increment = false, column_type = "Text")]
+    pub id: String,
     #[sea_orm(column_type = "Text", unique)]
     pub email: String,
     #[sea_orm(column_type = "Text")]
     pub password: String,
     pub created_at: Option<DateTime>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub role_id: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub name: Option<String>,
+    #[sea_orm(default_value = true)]
+    pub is_active: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-pub enum Relation {}
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::roles::Entity",
+        from = "Column::RoleId",
+        to = "super::roles::Column::Id",
+        on_update = "NoAction",
+        on_delete = "SetNull"
+    )]
+    Roles,
+}
+
+impl Related<super::roles::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Roles.def()
+    }
+}
 
 impl ActiveModelBehavior for ActiveModel {}

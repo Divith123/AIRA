@@ -78,8 +78,8 @@ export default function DispatchRulesPage() {
         pageName="Dispatch rules"
         showTimeRange={false}
         actionButton={
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             className="bg-primary hover:bg-primary/90 text-white font-bold text-[11px] uppercase tracking-widest px-6 h-9"
             onClick={() => setIsModalOpen(true)}
           >
@@ -106,11 +106,11 @@ export default function DispatchRulesPage() {
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="text-[14px] font-mono text-foreground truncate bg-muted/30 px-3 py-1.5 rounded-lg border border-border/40">
-                {sipUri || "sip:d7erc92zoce.sip.livekit.cloud"}
+                {sipUri || "N/A"}
               </div>
-              <button 
+              <button
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
-                onClick={() => navigator.clipboard.writeText(sipUri || "sip:d7erc92zoce.sip.livekit.cloud")}
+                onClick={() => sipUri && navigator.clipboard.writeText(sipUri)}
               >
                 <Copy className="w-4 h-4" />
               </button>

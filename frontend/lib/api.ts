@@ -114,9 +114,9 @@ export async function apiFetch<T>(
                     try {
                         const text = await response.text();
                         if (text && text.length < 200) errorMsg = text;
-                    } catch {}
+                    } catch { }
                 }
-                
+
                 // Don't throw a full error for 404 on the 'me' endpoint, 
                 // handle it gracefully in the caller or return a clear error.
                 const error = new Error(errorMsg);
@@ -136,7 +136,7 @@ export async function apiFetch<T>(
             return response.json();
         } catch (error) {
             lastError = error as Error;
-            
+
             if (lastError.message === "Unauthorized") {
                 throw lastError;
             }
@@ -263,18 +263,6 @@ export interface User {
 }
 
 export async function login(email: string, password: string): Promise<User> {
-    // Mock login for development
-    if (email === "admin@admin.con" && password === "admin") {
-        const mockToken = "mock_token_" + Date.now();
-        setAccessToken(mockToken);
-        const mockUser: User = {
-            id: "mock-admin-001",
-            email: "admin@admin.con",
-            name: "Admin User",
-        };
-        return mockUser;
-    }
-
     const response = await fetch(`${API_BASE}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -308,29 +296,7 @@ export async function logout(): Promise<void> {
 }
 
 export async function getMe(): Promise<User> {
-    // Return cached mock user if using mock token
-    const token = getAccessToken();
-    if (token?.startsWith("mock_token_") && typeof window !== "undefined") {
-        const cachedUser = localStorage.getItem("user");
-        if (cachedUser) {
-            return JSON.parse(cachedUser);
-        }
-    }
-    
-    try {
-        return await apiFetch<User>("/api/auth/me");
-    } catch (error: any) {
-        // If the backend isn't ready or endpoint is missing, return a fallback in development
-        if (error.status === 404 || error.message?.includes("404")) {
-            console.warn("Auth endpoint /api/auth/me not found. Using fallback user.");
-            return {
-                id: "dev-user",
-                email: "admin@relatim.io",
-                name: "Developer Admin"
-            };
-        }
-        throw error;
-    }
+    return await apiFetch<User>("/api/auth/me");
 }
 
 
@@ -343,17 +309,7 @@ export interface Project {
 }
 
 export async function getProjects(): Promise<Project[]> {
-    try {
-        return await apiFetch<Project[]>("/api/projects");
-    } catch (error: any) {
-        if (error.status === 404 || error.message?.includes("404")) {
-            console.warn("Projects endpoint not found, using mock projects");
-            return [
-                { id: "default", name: "Default Project", status: "active", created_at: new Date().toISOString() }
-            ];
-        }
-        throw error;
-    }
+    return await apiFetch<Project[]>("/api/projects");
 }
 
 export async function getProject(id: string): Promise<Project> {
@@ -413,18 +369,12 @@ export interface Agent {
     model: string;
     status: string;
     created_at: string;
+    welcome_message?: string;
+    allow_interruption?: boolean;
 }
 
 export async function getAgents(projectId: string): Promise<Agent[]> {
-    try {
-        return await apiFetch<Agent[]>(`/api/projects/${projectId}/agents`);
-    } catch (error: any) {
-        if (error.status === 404 || error.message?.includes("404")) {
-            console.warn("Agents endpoint not found, returning empty list");
-            return [];
-        }
-        throw error;
-    }
+    return await apiFetch<Agent[]>(`/api/projects/${projectId}/agents`);
 }
 
 export async function getAgent(projectId: string, agentId: string): Promise<Agent> {
@@ -432,28 +382,10 @@ export async function getAgent(projectId: string, agentId: string): Promise<Agen
 }
 
 export async function createAgent(projectId: string, agent: Partial<Agent>): Promise<Agent> {
-    try {
-        return await apiFetch<Agent>(`/api/projects/${projectId}/agents`, {
-            method: "POST",
-            body: JSON.stringify(agent),
-        });
-    } catch (error: any) {
-        // If the backend isn't ready or endpoint is missing, return a fallback in development
-        if (error.status === 404 || error.message?.includes("404")) {
-            const mockAgent: Agent = {
-                id: `agent-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                name: agent.name || "New Agent",
-                description: agent.description || "",
-                instructions: "",
-                model: "openai/gpt-4",
-                voice: "default",
-                created_at: new Date().toISOString(),
-                status: "active",
-            };
-            return mockAgent;
-        }
-        throw error;
-    }
+    return await apiFetch<Agent>(`/api/projects/${projectId}/agents`, {
+        method: "POST",
+        body: JSON.stringify(agent),
+    });
 }
 
 export async function updateAgent(projectId: string, agentId: string, agent: Partial<Agent>): Promise<Agent> {
@@ -686,9 +618,10 @@ export interface ApiKey {
 
 export interface Webhook {
     id: string;
+    name: string;
     url: string;
     events: string[];
-    secret: string;
+    secret?: string;
     created_at: string;
 }
 
@@ -709,16 +642,6 @@ export interface Role {
     is_system: boolean;
 }
 
-export async function createTeamMember(email: string, name: string, password: string, role: string): Promise<TeamMember> {
-    return apiFetch<TeamMember>("/api/settings/members", {
-        method: "POST",
-        body: JSON.stringify({ email, name, password, role }),
-    });
-}
-
-export async function deleteTeamMember(userId: string): Promise<void> {
-    await apiFetch(`/api/settings/members/${userId}`, { method: "DELETE" });
-}
 
 export async function getRoles(): Promise<Role[]> {
     return apiFetch<Role[]>("/api/settings/roles");
@@ -966,18 +889,18 @@ export async function getAuditLog(limit: number = 100, offset: number = 0): Prom
 // API KEYS & WEBHOOKS
 
 export async function getApiKeys(): Promise<ApiKey[]> {
-    return apiFetch<ApiKey[]>("/api/settings/keys");
+    return apiFetch<ApiKey[]>("/api/livekit/api-keys");
 }
 
 export async function createApiKey(name: string): Promise<ApiKey> {
-    return apiFetch<ApiKey>("/api/settings/keys", {
+    return apiFetch<ApiKey>("/api/livekit/api-keys", {
         method: "POST",
         body: JSON.stringify({ name }),
     });
 }
 
 export async function deleteApiKey(id: string): Promise<void> {
-    await apiFetch(`/api/settings/keys/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/livekit/api-keys/${id}`, { method: "DELETE" });
 }
 
 export async function getWebhooks(): Promise<Webhook[]> {
@@ -999,11 +922,15 @@ export async function getTeamMembers(): Promise<TeamMember[]> {
     return apiFetch<TeamMember[]>("/api/settings/members");
 }
 
-export async function inviteMember(email: string, role: string): Promise<void> {
-    await apiFetch("/api/settings/members/invite", {
+export async function createTeamMember(email: string, name: string, password: string, role: string): Promise<TeamMember> {
+    return apiFetch<TeamMember>("/api/settings/members", {
         method: "POST",
-        body: JSON.stringify({ email, role }),
+        body: JSON.stringify({ email, name, password, role }),
     });
+}
+
+export async function deleteTeamMember(userId: string): Promise<void> {
+    await apiFetch(`/api/settings/members/${userId}`, { method: "DELETE" });
 }
 
 
@@ -1035,8 +962,8 @@ export interface TranscriptSearchResponse {
 }
 
 export async function getRoomTranscripts(
-    roomSid: string, 
-    limit: number = 100, 
+    roomSid: string,
+    limit: number = 100,
     offset: number = 0
 ): Promise<TranscriptsResponse> {
     return apiFetch<TranscriptsResponse>(`/api/transcripts/${roomSid}?limit=${limit}&offset=${offset}`);
@@ -1050,7 +977,7 @@ export async function searchTranscripts(
     if (options?.roomSid) params.append('room_sid', options.roomSid);
     if (options?.speakerType) params.append('speaker_type', options.speakerType);
     if (options?.limit) params.append('limit', options.limit.toString());
-    
+
     return apiFetch<TranscriptSearchResponse>(`/api/transcripts/search?${params.toString()}`);
 }
 

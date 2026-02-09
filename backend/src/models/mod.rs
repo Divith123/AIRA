@@ -6,3 +6,11 @@ pub mod sip;
 pub mod config;
 pub mod metrics;
 pub mod agents;
+
+pub mod projects;
+pub mod sessions;
+pub mod analytics;
+pub mod settings;
+pub mod templates;
+pub mod rules;
+pub mod regions;

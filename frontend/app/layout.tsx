@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "@/lib/providers";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,7 +19,9 @@ export default function RootLayout({
       <body className="font-sans antialiased">
         <ThemeProvider>
           <Providers>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </Providers>
         </ThemeProvider>
       </body>

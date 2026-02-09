@@ -1,8 +1,17 @@
-pub mod auth_routes;
-pub mod livekit_routes;
-pub mod ingress_routes;
-pub mod egress_routes;
-pub mod sip_routes;
-pub mod config_routes;
-pub mod metrics_routes;
-pub mod agent_routes;
+pub mod auth;
+pub mod livekit;
+pub mod ingress;
+pub mod egress;
+pub mod sip;
+pub mod config;
+pub mod metrics;
+pub mod agents;
+
+pub mod projects;
+pub mod sessions;
+pub mod analytics;
+pub mod settings;
+pub mod templates;
+pub mod rules;
+pub mod regions;
+pub mod webhook;

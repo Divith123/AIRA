@@ -127,3 +127,10 @@ pub struct AgentStatusSummary {
     pub crashed_instances: i32,
     pub unhealthy_instances: i32,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct AgentProjectStats {
+    pub active_sessions: i32,
+    pub total_minutes: i32,
+    pub quota_minutes: i32,
+}

@@ -77,8 +77,8 @@ export default function SipTrunksPage() {
         pageName="SIP trunks"
         showTimeRange={false}
         actionButton={
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             className="bg-primary hover:bg-primary/90 text-white font-bold text-[11px] uppercase tracking-widest px-6 h-9"
             onClick={() => setIsModalOpen(true)}
           >
@@ -114,11 +114,11 @@ export default function SipTrunksPage() {
             </div>
             <div className="flex items-center justify-between gap-4">
               <div className="text-[14px] font-mono text-foreground truncate bg-muted/30 px-3 py-1.5 rounded-lg border border-border/40">
-                sip:d7erc92zoce.sip.livekit.cloud
+                {trunks.length > 0 ? (trunks[0].sip_server || trunks[0].sip_uri || "No URI configured") : "N/A"}
               </div>
-              <button 
+              <button
                 className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-all"
-                onClick={() => navigator.clipboard.writeText("sip:d7erc92zoce.sip.livekit.cloud")}
+                onClick={() => trunks.length > 0 && navigator.clipboard.writeText(trunks[0].sip_server || trunks[0].sip_uri || "")}
               >
                 <Copy className="w-4 h-4" />
               </button>
@@ -227,11 +227,11 @@ export default function SipTrunksPage() {
           <div className="space-y-8 py-2">
             <div>
               <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3 px-1">Identity</label>
-              <Input 
+              <Input
                 label="Friendly Name"
                 placeholder="e.g. Twilio Trunk"
-                value={formData.name} 
-                onChange={e => setFormData({ ...formData, name: e.target.value })} 
+                value={formData.name}
+                onChange={e => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
 
@@ -243,10 +243,10 @@ export default function SipTrunksPage() {
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5 px-1">Assigned Numbers</label>
-                  <textarea 
+                  <textarea
                     placeholder="+1234567890, +1987654321"
-                    value={formData.numbers} 
-                    onChange={e => setFormData({ ...formData, numbers: e.target.value })} 
+                    value={formData.numbers}
+                    onChange={e => setFormData({ ...formData, numbers: e.target.value })}
                     className="w-full bg-muted/20 border border-border/60 rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all min-h-[100px] resize-none"
                   />
                   <p className="mt-2 text-[11px] text-muted-foreground px-1">Comma-separated internal numbers to route.</p>
@@ -261,28 +261,28 @@ export default function SipTrunksPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5 px-1">Gateway Address</label>
-                    <Input 
+                    <Input
                       placeholder="sip.example.com"
-                      value={formData.sip_server} 
-                      onChange={e => setFormData({ ...formData, sip_server: e.target.value })} 
+                      value={formData.sip_server}
+                      onChange={e => setFormData({ ...formData, sip_server: e.target.value })}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5 px-1">Username</label>
-                      <Input 
+                      <Input
                         placeholder="User"
-                        value={formData.username} 
-                        onChange={e => setFormData({ ...formData, username: e.target.value })} 
+                        value={formData.username}
+                        onChange={e => setFormData({ ...formData, username: e.target.value })}
                       />
                     </div>
                     <div>
                       <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5 px-1">Password</label>
-                      <Input 
+                      <Input
                         type="password"
                         placeholder="••••••••"
-                        value={formData.password} 
-                        onChange={e => setFormData({ ...formData, password: e.target.value })} 
+                        value={formData.password}
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
                       />
                     </div>
                   </div>

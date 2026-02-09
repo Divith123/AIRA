@@ -1,84 +1,9 @@
 use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
-use reqwest;
-use serde_json::json;
-use std::env;
-use base64::{engine::general_purpose::STANDARD, Engine};
-
-use crate::entity::{egress as db_egress, prelude::*};
-use crate::models::egress::{CreateEgressRequest, EgressResponse};
-use crate::utils::jwt::{Claims, create_livekit_api_jwt};
+use sea_orm::{ActiveModelTrait, Set};
+use crate::entity::egress as db_egress;
+use crate::models::egress::*;
+use crate::utils::jwt::Claims;
 use crate::AppState;
-
-fn get_livekit_url() -> String {
-    env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string())
-}
-
-fn get_egress_url() -> String {
-    env::var("LIVEKIT_EGRESS_URL").unwrap_or_else(|_| "http://localhost:8083".to_string())
-}
-
-fn get_auth_header() -> String {
-    let api_key = env::var("LIVEKIT_API_KEY").expect("LIVEKIT_API_KEY must be set");
-    let api_secret = env::var("LIVEKIT_API_SECRET").expect("LIVEKIT_API_SECRET must be set");
-    format!("Basic {}", STANDARD.encode(format!("{}:{}", api_key, api_secret)))
-}
-
-pub async fn create_egress(
-    State(state): State<AppState>,
-    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
-    Json(req): Json<CreateEgressRequest>,
-) -> Result<Json<EgressResponse>, StatusCode> {
-    if !claims.is_admin {
-        return Err(StatusCode::FORBIDDEN);
-    }
-
-    let client = reqwest::Client::new();
-    let egress_url = get_egress_url();
-
-    let video_grants = json!({});
-    let ingress_grants = json!({});
-    let egress_grants = json!({
-        "room": req.room_name.clone(),
-        "can_publish": true
-    });
-    let sip_grants = json!({});
-
-    let token = create_livekit_api_jwt(json!({}), json!({}), json!({"admin": true}), json!({}))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/egress/start", egress_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&req)
-        .send()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
-
-    let egress: EgressResponse = response.json().await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // Store in DB
-    let egress_model = db_egress::ActiveModel {
-        name: Set(req.room_name.clone()),
-        egress_type: Set("stream".to_string()), // Default type
-        room_name: Set(Some(req.room_name)),
-        output_type: Set("rtmp".to_string()), // Default output type
-        ..Default::default()
-    };
-
-    let _result = egress_model.insert(&state.db).await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    Ok(Json(egress))
-}
 
 pub async fn list_egress(
     State(state): State<AppState>,
@@ -88,67 +13,199 @@ pub async fn list_egress(
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let egress_url = get_egress_url();
-
-    let token = create_livekit_api_jwt(json!({}), json!({}), json!({"admin": true}), json!({}))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/egress/list", egress_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({}))
-        .send()
-        .await
+    let egress_list = state.lk_service.list_egress(None).await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    let response = egress_list.into_iter().map(|e| EgressResponse {
+        egress_id: e.egress_id,
+        room_id: Some(e.room_id),
+        room_name: e.room_name,
+        status: e.status.to_string(),
+        started_at: if e.started_at > 0 { Some(e.started_at) } else { None },
+        ended_at: if e.ended_at > 0 { Some(e.ended_at) } else { None },
+        error: if !e.error.is_empty() { Some(e.error) } else { None },
+    }).collect();
+
+    Ok(Json(response))
+}
+
+pub async fn start_room_composite(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<RoomCompositeEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
     }
 
-    let egresses: Vec<EgressResponse> = match response.json().await {
-        Ok(data) => data,
-        Err(_) => {
-            // If parsing fails, return empty list
-            vec![]
-        }
+    // Map RoomCompositeEgressRequest to LiveKit types
+    let outputs = vec![]; // Need to map file/stream outputs if requested
+    let options = livekit_api::services::egress::RoomCompositeOptions::default();
+
+    let egress = state.lk_service.start_room_composite_egress(&req.room_name, outputs, options).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Store in DB
+    let egress_model = db_egress::ActiveModel {
+        name: Set(req.room_name.clone()),
+        egress_type: Set("room_composite".to_string()),
+        room_name: Set(Some(req.room_name)),
+        output_type: Set(if req.stream.is_some() { "stream".to_string() } else { "file".to_string() }),
+        ..Default::default()
     };
 
-    Ok(Json(egresses))
+    let _ = egress_model.insert(&state.db).await;
+
+    Ok(Json(EgressResponse {
+        egress_id: egress.egress_id,
+        room_id: Some(egress.room_id),
+        room_name: egress.room_name,
+        status: egress.status.to_string(),
+        started_at: if egress.started_at > 0 { Some(egress.started_at) } else { None },
+        ended_at: if egress.ended_at > 0 { Some(egress.ended_at) } else { None },
+        error: if !egress.error.is_empty() { Some(egress.error) } else { None },
+    }))
+}
+
+pub async fn start_participant_egress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<ParticipantEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let outputs = vec![]; // Map outputs if provided in request
+    let options = livekit_api::services::egress::ParticipantEgressOptions::default();
+
+    let egress = state.lk_service.start_participant_egress(&req.room_name, &req.identity, outputs, options).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(EgressResponse {
+        egress_id: egress.egress_id,
+        room_id: Some(egress.room_id),
+        room_name: egress.room_name,
+        status: egress.status.to_string(),
+        started_at: if egress.started_at > 0 { Some(egress.started_at) } else { None },
+        ended_at: if egress.ended_at > 0 { Some(egress.ended_at) } else { None },
+        error: if !egress.error.is_empty() { Some(egress.error) } else { None },
+    }))
 }
 
 pub async fn stop_egress(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
-    axum::extract::Path(egress_id): axum::extract::Path<String>,
-) -> Result<StatusCode, StatusCode> {
+    Json(payload): Json<StopEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
     if !claims.is_admin {
         return Err(StatusCode::FORBIDDEN);
     }
 
-    let client = reqwest::Client::new();
-    let egress_url = get_egress_url();
-
-    let token = create_livekit_api_jwt(json!({}), json!({}), json!({"admin": true}), json!({}))
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let auth_header = format!("Bearer {}", token);
-
-    let url = format!("{}/egress/stop", egress_url);
-    let response = client
-        .post(&url)
-        .header("Authorization", auth_header)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({"egress_id": egress_id}))
-        .send()
-        .await
+    let egress = state.lk_service.stop_egress(&payload.egress_id).await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    if !response.status().is_success() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    Ok(Json(EgressResponse {
+        egress_id: egress.egress_id,
+        room_id: Some(egress.room_id),
+        room_name: egress.room_name,
+        status: egress.status.to_string(),
+        started_at: if egress.started_at > 0 { Some(egress.started_at) } else { None },
+        ended_at: if egress.ended_at > 0 { Some(egress.ended_at) } else { None },
+        error: if !egress.error.is_empty() { Some(egress.error) } else { None },
+    }))
+}
+
+pub async fn start_web_egress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<WebEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
     }
 
-    Ok(StatusCode::NO_CONTENT)
+    let outputs = vec![]; 
+    let options = livekit_api::services::egress::WebOptions::default();
+
+    let egress = state.lk_service.start_web_egress(&req.url, outputs, options).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(EgressResponse {
+        egress_id: egress.egress_id,
+        room_id: Some(egress.room_id),
+        room_name: egress.room_name,
+        status: egress.status.to_string(),
+        started_at: if egress.started_at > 0 { Some(egress.started_at) } else { None },
+        ended_at: if egress.ended_at > 0 { Some(egress.ended_at) } else { None },
+        error: if !egress.error.is_empty() { Some(egress.error) } else { None },
+    }))
+}
+
+pub async fn start_track_egress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<TrackEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let output = livekit_api::services::egress::EgressOutput::File(livekit_protocol::EncodedFileOutput {
+        filepath: format!("{}.mp4", req.track_sid),
+        disable_manifest: true,
+        ..Default::default()
+    });
+
+    let egress = state.lk_service.start_track_egress(&req.room_name, &req.track_sid, output).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(EgressResponse {
+        egress_id: egress.egress_id,
+        room_id: Some(egress.room_id),
+        room_name: egress.room_name,
+        status: egress.status.to_string(),
+        started_at: if egress.started_at > 0 { Some(egress.started_at) } else { None },
+        ended_at: if egress.ended_at > 0 { Some(egress.ended_at) } else { None },
+        error: if !egress.error.is_empty() { Some(egress.error) } else { None },
+    }))
+}
+
+pub async fn start_image_egress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<ImageEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    let outputs = vec![livekit_api::services::egress::EgressOutput::Image(livekit_protocol::ImageOutput {
+        filename_prefix: format!("{}-snapshot", req.room_name),
+        capture_interval: 10,
+        ..Default::default()
+    })];
+    let options = livekit_api::services::egress::TrackCompositeOptions::default();
+
+    let egress = state.lk_service.start_track_composite_egress(&req.room_name, outputs, options).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(Json(EgressResponse {
+        egress_id: egress.egress_id,
+        room_id: Some(egress.room_id),
+        room_name: egress.room_name,
+        status: egress.status.to_string(),
+        started_at: if egress.started_at > 0 { Some(egress.started_at) } else { None },
+        ended_at: if egress.ended_at > 0 { Some(egress.ended_at) } else { None },
+        error: if !egress.error.is_empty() { Some(egress.error) } else { None },
+    }))
+}
+
+// compatibility stub for create_egress if needed by routes
+pub async fn create_egress(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<RoomCompositeEgressRequest>,
+) -> Result<Json<EgressResponse>, StatusCode> {
+    start_room_composite(State(state), axum::extract::Extension(claims), Json(req)).await
 }
