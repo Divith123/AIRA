@@ -1,0 +1,154 @@
+use axum::{extract::State, http::StatusCode, Json};
+use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
+
+use crate::entity::{agent_rooms, agents, agent_instances, prelude::*};
+use crate::models::agents::AgentRoomAssignment;
+use crate::utils::jwt::Claims;
+use crate::AppState;
+
+pub async fn assign_agent_to_room(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    Json(req): Json<AgentRoomAssignment>,
+) -> Result<StatusCode, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Find the agent
+    let agent = agents::Entity::find()
+        .filter(agents::Column::AgentId.eq(&req.agent_id))
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Check if assignment already exists
+    let existing = agent_rooms::Entity::find()
+        .filter(agent_rooms::Column::AgentId.eq(agent.id))
+        .filter(agent_rooms::Column::RoomName.eq(&req.room_name))
+        .filter(agent_rooms::Column::LeftAt.is_null())
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    if existing.is_some() {
+        return Err(StatusCode::CONFLICT);
+    }
+
+    // Create assignment
+    let assignment_model = agent_rooms::ActiveModel {
+        id: Set(uuid::Uuid::new_v4()),
+        agent_id: Set(agent.id),
+        instance_id: Set(req.instance_id.map(|id| uuid::Uuid::parse_str(&id).unwrap())),
+        room_name: Set(req.room_name),
+        joined_at: Set(Some(chrono::Utc::now().into())),
+        ..Default::default()
+    };
+
+    assignment_model.insert(&state.db).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::CREATED)
+}
+
+pub async fn remove_agent_from_room(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path((agent_id, room_name)): axum::extract::Path<(String, String)>,
+) -> Result<StatusCode, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Find the agent
+    let agent = agents::Entity::find()
+        .filter(agents::Column::AgentId.eq(agent_id))
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Find active assignment
+    let assignment = agent_rooms::Entity::find()
+        .filter(agent_rooms::Column::AgentId.eq(agent.id))
+        .filter(agent_rooms::Column::RoomName.eq(room_name))
+        .filter(agent_rooms::Column::LeftAt.is_null())
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Update assignment
+    let mut assignment: agent_rooms::ActiveModel = assignment.into();
+    assignment.left_at = Set(Some(chrono::Utc::now().into()));
+
+    assignment.update(&state.db).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    Ok(StatusCode::OK)
+}
+
+pub async fn get_agent_room_assignments(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path(agent_id): axum::extract::Path<String>,
+) -> Result<Json<Vec<AgentRoomAssignment>>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Find the agent
+    let agent = agents::Entity::find()
+        .filter(agents::Column::AgentId.eq(agent_id))
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    // Get assignments
+    let assignments = agent_rooms::Entity::find()
+        .filter(agent_rooms::Column::AgentId.eq(agent.id))
+        .all(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let response: Vec<AgentRoomAssignment> = assignments.into_iter().map(|assignment| AgentRoomAssignment {
+        agent_id: agent.agent_id.clone(),
+        room_name: assignment.room_name,
+        instance_id: assignment.instance_id.map(|id| id.to_string()),
+    }).collect();
+
+    Ok(Json(response))
+}
+
+pub async fn get_room_agents(
+    State(state): State<AppState>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
+    axum::extract::Path(room_name): axum::extract::Path<String>,
+) -> Result<Json<Vec<AgentRoomAssignment>>, StatusCode> {
+    if !claims.is_admin {
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Get active assignments for the room
+    let assignments = agent_rooms::Entity::find()
+        .filter(agent_rooms::Column::RoomName.eq(room_name))
+        .filter(agent_rooms::Column::LeftAt.is_null())
+        .find_also_related(agents::Entity)
+        .all(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let response: Vec<AgentRoomAssignment> = assignments.into_iter()
+        .filter_map(|(assignment, agent)| {
+            agent.map(|a| AgentRoomAssignment {
+                agent_id: a.agent_id,
+                room_name: assignment.room_name,
+                instance_id: assignment.instance_id.map(|id| id.to_string()),
+            })
+        })
+        .collect();
+
+    Ok(Json(response))
+}

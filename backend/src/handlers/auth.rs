@@ -2,13 +2,13 @@ use axum::{extract::State, Json};
 use sea_orm::{
     ActiveModelTrait,
     ColumnTrait,
-    DatabaseConnection,
     EntityTrait,
     QueryFilter,
     Set,
 };
 
 use crate::entity::users;
+use crate::AppState;
 use crate::models::auth::{RegisterRequest, LoginRequest};
 use crate::utils::password::{hash_password, verify_password};
 use crate::utils::jwt::{create_jwt, decode_jwt};
@@ -19,13 +19,13 @@ use uuid::Uuid;
 // ---------------- REGISTER ----------------
 
 pub async fn register(
-    State(db): State<DatabaseConnection>,
+    State(state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
 ) -> Json<String> {
 
     let existing_user = users::Entity::find()
         .filter(users::Column::Email.eq(&payload.email))
-        .one(&db)
+        .one(&state.db)
         .await
         .unwrap();
 
@@ -41,7 +41,7 @@ pub async fn register(
         ..Default::default()
     };
 
-    new_user.insert(&db).await.unwrap();
+    new_user.insert(&state.db).await.unwrap();
 
     Json("User registered".to_string())
 }
@@ -49,13 +49,13 @@ pub async fn register(
 // ---------------- LOGIN ----------------
 
 pub async fn login(
-    State(db): State<DatabaseConnection>,
+    State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<String>, (axum::http::StatusCode, String)> {
 
     let user = users::Entity::find()
         .filter(users::Column::Email.eq(&payload.email))
-        .one(&db)
+        .one(&state.db)
         .await
         .unwrap();
 
@@ -75,7 +75,7 @@ pub async fn login(
         ));
     }
 
-    let token = create_jwt(user.id.to_string());
+    let token = create_jwt(user.id.to_string(), true); // All users are admins for now
 
     Ok(Json(token))
 }
@@ -83,7 +83,7 @@ pub async fn login(
 // ---------------- ME ----------------
 
 pub async fn me(
-    State(db): State<DatabaseConnection>,
+    State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Json<serde_json::Value> {
 
@@ -104,7 +104,7 @@ pub async fn me(
     };
 
     if let Ok(user_id) = Uuid::parse_str(&claims.sub) {
-        if let Some(user) = users::Entity::find_by_id(user_id).one(&db).await.unwrap() {
+        if let Some(user) = users::Entity::find_by_id(user_id).one(&state.db).await.unwrap() {
             return Json(json!({"id": user.id.to_string(), "email": user.email}));
         }
     }

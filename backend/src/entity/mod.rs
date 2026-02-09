@@ -3,3 +3,15 @@
 pub mod prelude;
 
 pub mod users;
+pub mod api_keys;
+pub mod rooms;
+pub mod ingress;
+pub mod egress;
+pub mod sip;
+pub mod configs;
+pub mod metrics;
+pub mod agents;
+pub mod agent_instances;
+pub mod agent_logs;
+pub mod agent_metrics;
+pub mod agent_rooms;

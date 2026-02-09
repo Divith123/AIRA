@@ -1,0 +1,20 @@
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "configs")]
+pub struct Model {
+    #[sea_orm(primary_key, column_type = "Uuid")]
+    pub id: Uuid,
+    pub service_name: String,
+    pub config_key: String,
+    pub config_value: Option<String>,
+    pub is_active: bool,
+    pub created_at: DateTimeWithTimeZone,
+    pub updated_at: DateTimeWithTimeZone,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {}
+
+impl ActiveModelBehavior for ActiveModel {}
