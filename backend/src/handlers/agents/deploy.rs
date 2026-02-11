@@ -5,10 +5,9 @@ use std::env;
 use std::process::Stdio;
 use tokio::process::Command;
 use uuid::Uuid;
-use jsonwebtoken::{encode, Header, EncodingKey};
 
-use crate::entity::{agents, agent_instances, prelude::*};
-use crate::models::agents::{CreateAgentRequest, UpdateAgentRequest, AgentResponse, DeployAgentRequest, DeployAgentResponse, AgentInstanceResponse};
+use crate::entity::{agents, agent_instances};
+use crate::models::agents::{CreateAgentRequest, UpdateAgentRequest, AgentResponse, DeployAgentRequest, DeployAgentResponse};
 use crate::utils::jwt::{Claims, create_agent_jwt};
 use crate::AppState;
 

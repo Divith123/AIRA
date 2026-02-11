@@ -368,6 +368,7 @@ pub async fn start_image_egress(
 }
 
 // compatibility stub for create_egress if needed by routes
+#[allow(dead_code)]
 pub async fn create_egress(
     State(state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,

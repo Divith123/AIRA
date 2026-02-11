@@ -1,10 +1,10 @@
 use axum::{extract::{State, Path, self as ax_extract}, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 use std::env;
 use crate::models::sip::*;
 use crate::utils::jwt::Claims;
 use crate::AppState;
 
+#[allow(dead_code)]
 fn get_livekit_url() -> String {
     env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string())
 }

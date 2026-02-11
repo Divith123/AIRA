@@ -2,7 +2,7 @@ use axum::{extract::State, http::StatusCode, Json};
 use sea_orm::{ActiveModelTrait, EntityTrait, Set};
 use uuid::Uuid;
 
-use crate::entity::{api_keys, prelude::*};
+use crate::entity::api_keys;
 use crate::models::livekit::{CreateApiKeyRequest, ApiKeyResponse};
 use crate::utils::jwt::Claims;
 use crate::AppState;

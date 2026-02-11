@@ -1,9 +1,8 @@
 use axum::{extract::{State, Query}, http::StatusCode, Json};
 use sea_orm::{
-    ActiveModelTrait, EntityTrait, QueryOrder, QuerySelect, PaginatorTrait, ColumnTrait, QueryFilter,
+    EntityTrait, QueryOrder, QuerySelect, PaginatorTrait, ColumnTrait, QueryFilter,
     sea_query::{Expr, Func},
 };
-use chrono::{Utc, Duration};
 
 use crate::entity::{sessions, prelude::*};
 use crate::models::sessions::{SessionResponse, SessionsListResponse, ListSessionsQuery, SessionStatsResponse, SessionTimeSeriesPoint};

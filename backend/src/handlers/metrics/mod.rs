@@ -9,7 +9,7 @@ use crate::utils::jwt::Claims;
 use crate::AppState;
 
 pub async fn get_metrics_summary(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,
 ) -> Result<Json<MetricsSummary>, StatusCode> {
     if !claims.is_admin {

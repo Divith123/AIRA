@@ -3,6 +3,7 @@ use uuid::Uuid;
 use chrono::Utc;
 use crate::entity::audit_logs;
 
+#[allow(dead_code)]
 pub async fn record_audit_log(
     db: &DatabaseConnection,
     action: &str,

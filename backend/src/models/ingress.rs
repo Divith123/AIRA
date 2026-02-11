@@ -46,6 +46,7 @@ pub struct IngressStateResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ListIngressResponse {
     pub items: Vec<IngressResponse>,
 }

@@ -1,8 +1,7 @@
-use axum::{http::StatusCode, middleware::Next, response::Response, body::Body};
+use axum::http::StatusCode;
 use chrono::{Utc, Duration};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation};
 use serde::{Serialize, Deserialize};
-use serde_json::json;
 use std::env;
 
 use axum::extract::Request;

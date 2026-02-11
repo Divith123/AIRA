@@ -1,4 +1,4 @@
-use axum::{extract::{State, Path}, http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use sea_orm::{ActiveModelTrait, EntityTrait, Set, QueryOrder};
 use uuid::Uuid;
 use chrono::Utc;

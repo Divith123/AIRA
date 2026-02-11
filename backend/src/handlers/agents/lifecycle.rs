@@ -1,9 +1,8 @@
 use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder, PaginatorTrait, QuerySelect, ActiveModelTrait, Set};
-use std::process::Command;
+use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
 use tokio::process::Command as TokioCommand;
 
-use crate::entity::{agents, agent_instances, prelude::*};
+use crate::entity::{agents, agent_instances};
 use crate::models::agents::AgentInstanceResponse;
 use crate::utils::jwt::Claims;
 use crate::AppState;
@@ -31,7 +30,7 @@ pub async fn start_agent(
     // Start the container or process
     let result = if let Some(container_id) = &instance.container_id {
         start_docker_container(container_id).await
-    } else if let Some(pid) = instance.process_pid {
+    } else if let Some(_pid) = instance.process_pid {
         // For processes, we need to restart them
         restart_process(&state, &instance).await
     } else {
@@ -279,7 +278,7 @@ async fn restart_process(state: &AppState, instance: &agent_instances::Model) ->
         .ok_or(StatusCode::NOT_FOUND)?;
 
     // Redeploy as a process
-    crate::handlers::agents::deploy::deploy_process_agent(state, &agent, &instance.instance_id, None).await?;
+    let _ = crate::handlers::agents::deploy::deploy_process_agent(state, &agent, &instance.instance_id, None).await?;
     
     Ok(())
 }

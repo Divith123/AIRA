@@ -6,7 +6,6 @@ mod entity;
 mod services;
 
 use axum::Router;
-use dotenvy::dotenv;
 use tokio::net::TcpListener;
 use routes::{
     auth, livekit, ingress, egress, sip, config as config_routes, metrics, agents,
@@ -22,10 +21,6 @@ use axum::http::HeaderValue;
 use std::sync::Arc;
 use std::env;
 use sea_orm::{Database, DatabaseConnection};
-use livekit_api::services::room::RoomClient;
-use livekit_api::services::egress::EgressClient;
-use livekit_api::services::ingress::IngressClient;
-use livekit_api::services::sip::SIPClient;
 
 async fn health_handler() -> &'static str {
     println!("Health check handler hit!");
@@ -39,7 +34,7 @@ pub struct AppState {
     pub lk_service: Arc<LiveKitService>,
 }
 
-async fn run_migrations(db: &DatabaseConnection) {
+async fn run_migrations(_db: &DatabaseConnection) {
     let db_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set for PostgreSQL migrations");
     let pool = sqlx::PgPool::connect(&db_url).await.expect("Failed to connect to database");
 

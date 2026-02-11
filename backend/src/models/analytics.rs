@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Serialize)]
 pub struct AnalyticsSummaryResponse {
@@ -9,6 +9,7 @@ pub struct AnalyticsSummaryResponse {
 }
 
 #[derive(Serialize)]
+#[allow(dead_code)]
 pub struct AnalyticsMetricsResponse {
     pub timeseries: Vec<AnalyticsDataPoint>,
     pub summary: AnalyticsSummaryResponse,

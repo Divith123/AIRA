@@ -1,7 +1,5 @@
 use axum::{extract::{State, Query}, http::StatusCode, Json};
 use sea_orm::{EntityTrait, QueryOrder, PaginatorTrait, ColumnTrait, QueryFilter};
-use uuid::Uuid;
-use chrono::Utc;
 
 use crate::entity::{audit_logs, prelude::*};
 use crate::models::audit_logs::{AuditLogResponse, ListAuditLogsQuery};

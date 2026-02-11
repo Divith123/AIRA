@@ -2,23 +2,14 @@
 
 pub use super::users::Entity as Users;
 pub use super::api_keys::Entity as ApiKeys;
-pub use super::rooms::Entity as Rooms;
-pub use super::ingress::Entity as Ingress;
-pub use super::egress::Entity as Egress;
-pub use super::sip::Entity as Sip;
 pub use super::configs::Entity as Configs;
 pub use super::metrics::Entity as Metrics;
-pub use super::agents::Entity as Agents;
 pub use super::agent_instances::Entity as AgentInstances;
-pub use super::agent_logs::Entity as AgentLogs;
-pub use super::agent_metrics::Entity as AgentMetrics;
-pub use super::agent_rooms::Entity as AgentRooms;
 
 pub use super::projects::Entity as Projects;
 pub use super::project_ai_configs::Entity as ProjectAIConfigs;
 pub use super::sessions::Entity as Sessions;
 pub use super::analytics_snapshots::Entity as AnalyticsSnapshots;
-pub use super::sip_trunks::Entity as SipTrunks;
 pub use super::dispatch_rules::Entity as DispatchRules;
 pub use super::room_templates::Entity as RoomTemplates;
 pub use super::layout_templates::Entity as LayoutTemplates;

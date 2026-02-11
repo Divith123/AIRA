@@ -119,9 +119,9 @@ export async function apiFetch<T>(
 
                 // Don't throw a full error for 404 on the 'me' endpoint, 
                 // handle it gracefully in the caller or return a clear error.
-                const error = new Error(errorMsg);
-                (error as any).status = response.status;
-                throw error;
+                const apiError = new Error(errorMsg);
+                (apiError as any).status = response.status;
+                throw apiError;
             }
 
             if (response.status === 204) {
@@ -263,7 +263,7 @@ export interface User {
 }
 
 export async function login(email: string, password: string): Promise<User> {
-    const response = await fetch(`${API_BASE}/login`, {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

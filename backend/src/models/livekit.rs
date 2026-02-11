@@ -15,6 +15,7 @@ pub struct ApiKeyResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ListRoomsResponse {
     pub rooms: Vec<RoomResponse>,
 }
@@ -41,6 +42,7 @@ pub struct RoomResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CodecInfo {
     pub mime: String,
 }
@@ -55,6 +57,7 @@ pub struct ParticipantResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct TrackInfo {
     pub sid: String,
     pub name: String,

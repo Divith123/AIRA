@@ -7,7 +7,7 @@ CREATE TABLE api_keys (
     secret_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT 1
+    is_active BOOLEAN DEFAULT TRUE
 );
 
 -- Create rooms table
@@ -19,7 +19,7 @@ CREATE TABLE rooms (
     empty_timeout INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT 1
+    is_active BOOLEAN DEFAULT TRUE
 );
 
 -- Create ingress table
@@ -30,7 +30,7 @@ CREATE TABLE ingress (
     room_name TEXT,
     stream_key TEXT,
     url TEXT,
-    is_enabled BOOLEAN DEFAULT 1,
+    is_enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -43,7 +43,7 @@ CREATE TABLE egress (
     room_name TEXT,
     output_type TEXT, -- FILE, STREAM
     output_url TEXT,
-    is_active BOOLEAN DEFAULT 0,
+    is_active BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -55,7 +55,7 @@ CREATE TABLE sip (
     trunk_id TEXT,
     phone_number TEXT,
     room_name TEXT,
-    is_enabled BOOLEAN DEFAULT 1,
+    is_enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,7 +66,7 @@ CREATE TABLE configs (
     service_name TEXT NOT NULL, -- livekit-server, ingress, egress, sip
     config_key TEXT NOT NULL,
     config_value TEXT,
-    is_active BOOLEAN DEFAULT 1,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(service_name, config_key)

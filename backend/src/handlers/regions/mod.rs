@@ -1,7 +1,7 @@
 use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{EntityTrait, QueryOrder};
+use sea_orm::EntityTrait;
 
-use crate::entity::{regions, prelude::*};
+use crate::entity::prelude::*;
 use crate::models::regions::RegionResponse;
 use crate::utils::jwt::Claims;
 use crate::AppState;

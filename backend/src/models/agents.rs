@@ -120,6 +120,7 @@ pub struct AgentRoomAssignment {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct AgentStatusSummary {
     pub total_agents: i32,
     pub running_instances: i32,

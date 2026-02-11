@@ -1,4 +1,4 @@
-use axum::{routing::{get, post, delete, put}, Router, middleware};
+use axum::{routing::{get, delete, put}, Router, middleware};
 use crate::handlers::settings;
 use crate::utils::jwt::jwt_middleware;
 

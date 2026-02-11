@@ -1,8 +1,7 @@
 use axum::{extract::{State, Path}, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set, PaginatorTrait, ModelTrait, QueryFilter, ColumnTrait};
+use sea_orm::{ActiveModelTrait, EntityTrait, Set, ModelTrait, QueryFilter, ColumnTrait};
 use uuid::Uuid;
 use chrono::Utc;
-use rand::Rng;
 
 use crate::entity::{
     roles, service_accounts, storage_configs, users, configs,

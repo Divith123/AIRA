@@ -1,11 +1,9 @@
 use axum::{extract::State, http::StatusCode, Json};
 use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, QueryOrder, PaginatorTrait};
-use std::process::Stdio;
 use tokio::process::Command;
-use serde_json;
 use rust_decimal;
 
-use crate::entity::{agent_metrics, agent_instances, prelude::*};
+use crate::entity::{agent_metrics, agent_instances};
 use crate::models::agents::AgentMetricResponse;
 use crate::utils::jwt::Claims;
 use crate::AppState;
@@ -94,7 +92,7 @@ pub async fn collect_agent_metrics(
 }
 
 async fn collect_docker_metrics(
-    state: &AppState,
+    _state: &AppState,
     instance: &agent_instances::Model,
     container_id: &str,
 ) -> Result<Vec<AgentMetricResponse>, StatusCode> {
@@ -177,9 +175,9 @@ async fn collect_docker_metrics(
 }
 
 async fn collect_process_metrics(
-    state: &AppState,
+    _state: &AppState,
     instance: &agent_instances::Model,
-    pid: i32,
+    _pid: i32,
 ) -> Result<Vec<AgentMetricResponse>, StatusCode> {
     let mut metrics = Vec::new();
 

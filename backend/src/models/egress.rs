@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CreateEgressRequest {
     pub room_name: String,
     pub output: Option<EgressOutput>,
@@ -8,6 +9,7 @@ pub struct CreateEgressRequest {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[allow(dead_code)]
 pub enum EgressOutput {
     File { filepath: String, disable_manifest: Option<bool> },
     Stream { protocol: String, urls: Vec<String> },
@@ -115,6 +117,7 @@ pub struct StopEgressRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ListEgressResponse {
     pub items: Vec<EgressResponse>,
 }

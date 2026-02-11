@@ -200,6 +200,7 @@ impl LiveKitService {
         Ok(res)
     }
 
+    #[allow(deprecated)]
     pub async fn create_sip_dispatch_rule(&self, req: livekit_protocol::CreateSipDispatchRuleRequest) -> Result<SipDispatchRuleInfo> {
         let rule = req.rule.ok_or_else(|| anyhow::anyhow!("Rule is required"))?;
         let rule_enum = rule.rule.ok_or_else(|| anyhow::anyhow!("Inner rule is required"))?;

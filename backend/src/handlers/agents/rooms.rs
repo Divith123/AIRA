@@ -1,7 +1,7 @@
 use axum::{extract::State, http::StatusCode, Json};
 use sea_orm::{EntityTrait, QueryFilter, ColumnTrait, ActiveModelTrait, Set};
 
-use crate::entity::{agent_rooms, agents, agent_instances, prelude::*};
+use crate::entity::{agent_rooms, agents};
 use crate::models::agents::AgentRoomAssignment;
 use crate::utils::jwt::Claims;
 use crate::AppState;

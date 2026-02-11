@@ -1,4 +1,4 @@
-use axum::{routing::{post, get, put, delete}, Router, middleware};
+use axum::{routing::{post, get, delete}, Router, middleware};
 use crate::handlers::agents::{deploy, lifecycle, logs, metrics, rooms};
 use crate::utils::jwt::jwt_middleware;
 

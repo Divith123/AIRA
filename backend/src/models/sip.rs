@@ -24,6 +24,7 @@ pub struct SipTrunkResponse {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ListSipTrunkResponse {
     pub items: Vec<SipTrunkResponse>,
 }
@@ -79,11 +80,13 @@ pub struct RecursiveRule {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ListSipDispatchRuleResponse {
     pub items: Vec<SipDispatchRuleResponse>,
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct CreateSipCallRequest {
     pub trunk_id: String,
     pub to_number: String,
@@ -92,6 +95,7 @@ pub struct CreateSipCallRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct SipCallResponse {
     pub call_id: String,
     pub trunk_id: String,

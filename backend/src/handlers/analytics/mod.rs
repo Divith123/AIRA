@@ -4,7 +4,7 @@ use sea_orm::{
     QueryFilter, ColumnTrait, PaginatorTrait,
     sea_query::{Expr, Func},
 };
-use chrono::{Utc, Duration};
+use chrono::Utc;
 use std::collections::HashMap;
 
 use crate::entity::{sessions, prelude::*};
@@ -13,6 +13,7 @@ use crate::utils::jwt::Claims;
 use crate::AppState;
 
 #[derive(FromQueryResult)]
+#[allow(dead_code)]
 struct SessionStats {
     count: i64,
     sum_duration: Option<f64>, // Duration in seconds

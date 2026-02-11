@@ -4,7 +4,7 @@ use std::process::Stdio;
 use tokio::process::Command;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
-use crate::entity::{agent_logs, agent_instances, prelude::*};
+use crate::entity::{agent_logs, agent_instances};
 use crate::models::agents::AgentLogResponse;
 use crate::utils::jwt::Claims;
 use crate::AppState;
@@ -139,6 +139,7 @@ async fn stream_docker_logs(container_id: &str) -> Result<String, StatusCode> {
     Ok(logs.join("\n"))
 }
 
+#[allow(dead_code)]
 pub async fn store_agent_log(
     state: &AppState,
     instance_id: &str,
