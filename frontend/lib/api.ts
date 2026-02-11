@@ -44,6 +44,12 @@ export function clearAuth() {
     if (typeof window !== "undefined") {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        // Remove cookie token so it disappears from Application -> Cookies
+        try {
+            document.cookie = "token=; path=/; max-age=0; samesite=strict";
+        } catch (e) {
+            // ignore in non-browser contexts
+        }
     }
 }
 
@@ -305,7 +311,10 @@ export interface Project {
     name: string;
     description?: string;
     status: string;
+    short_id?: string;
+    user_id?: string;
     created_at: string;
+    updated_at?: string;
 }
 
 export async function getProjects(): Promise<Project[]> {

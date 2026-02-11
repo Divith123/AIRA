@@ -156,7 +156,7 @@ export default function EgressesPage() {
 
   return (
     <>
-      <Header projectName="RELATIM" pageName="Egress" showTimeRange={false}
+      <Header projectName="AIRA" pageName="Egress" showTimeRange={false}
         actionButton={
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={handleRefresh} leftIcon={<RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />}>

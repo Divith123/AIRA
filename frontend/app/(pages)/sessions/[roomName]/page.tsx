@@ -294,7 +294,7 @@ export default function RoomDetailPage() {
     );
   }
 
-  const projectName = typeof window !== "undefined" ? localStorage.getItem("projectName") || "RELATIM" : "RELATIM";
+  const projectName = typeof window !== "undefined" ? localStorage.getItem("projectName") || "AIRA" : "AIRA";
   const room = roomDetail?.room;
   const participants = roomDetail?.participants || [];
 

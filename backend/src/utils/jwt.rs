@@ -33,11 +33,13 @@ pub async fn jwt_middleware(
     Ok(next.run(req).await)
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Claims {
     pub sub: String,
     pub exp: usize,
     pub is_admin: bool,
+    pub email: String,
+    pub name: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -75,13 +77,16 @@ fn livekit_api_secret() -> String {
     env::var("LIVEKIT_API_SECRET").expect("LIVEKIT_API_SECRET must be set")
 }
 
-pub fn create_jwt(user_id: String, is_admin: bool) -> String {
+pub fn create_jwt(user_id: String, is_admin: bool, email: String, name: String) -> String {
     let expiration = Utc::now()
         .checked_add_signed(Duration::hours(24))
         .expect("Failed to calculate JWT expiration time")
         .timestamp() as usize;
 
-    let claims = Claims { sub: user_id, exp: expiration, is_admin };
+    let claims = Claims { sub: user_id, exp: expiration, is_admin, email, name };
+
+    // Log claims for debugging so we can confirm the token contains the fields
+    eprintln!("Creating JWT claims: {:?}", claims);
 
     encode(
         &Header::default(),

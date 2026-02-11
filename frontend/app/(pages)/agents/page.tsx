@@ -176,7 +176,7 @@ export default function AgentsPage() {
   return (
     <>
       <Header
-        projectName={currentProject?.name || "Relatim"}
+        projectName={currentProject?.name || "AIRA"}
         pageName="Agents"
         showTimeRange={true}
         onRefresh={loadData}

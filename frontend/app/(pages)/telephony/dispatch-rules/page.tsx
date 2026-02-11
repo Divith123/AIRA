@@ -25,7 +25,7 @@ export default function DispatchRulesPage() {
     const loadData = async () => {
       if (!getAccessToken()) { router.push("/login"); return; }
       try {
-        setProjectName(localStorage.getItem("projectName") || "RELATIM");
+        setProjectName(localStorage.getItem("projectName") || "AIRA");
 
         const [r, a, t] = await Promise.all([getDispatchRules(), getAgents("default"), getSipTrunks()]);
         setRules(r);

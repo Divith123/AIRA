@@ -26,7 +26,10 @@ pub async fn register(
         .filter(users::Column::Email.eq(&payload.email))
         .one(&state.db)
         .await
-        .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string()))?;
+        .map_err(|e| {
+            eprintln!("DB error fetching existing user: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Database error".to_string())
+        })?;
 
     if existing_user.is_some() {
         return Ok(Json("Email already exists".to_string()));
@@ -39,13 +42,18 @@ pub async fn register(
     let new_user = users::ActiveModel {
         id: Set(user_id),
         email: Set(payload.email),
+        name: Set(Some(payload.name)),
+        phone: Set(Some(payload.phone)),
         password: Set(hashed_password),
         role_id: Set(Some("role_admin".to_string())),
         is_active: Set(true),
         ..Default::default()
     };
 
-    new_user.insert(&state.db).await.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create user".to_string()))?;
+    new_user.insert(&state.db).await.map_err(|e| {
+        eprintln!("DB error inserting new user: {:?}", e);
+        (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create user".to_string())
+    })?;
 
     Ok(Json("User registered".to_string()))
 }
@@ -91,7 +99,8 @@ pub async fn login(
         false
     };
 
-    let token = create_jwt(user.id, is_admin);
+    let user_name = user.name.clone().unwrap_or_default();
+    let token = create_jwt(user.id.clone(), is_admin, user.email.clone(), user_name);
 
     Ok(Json(token))
 }
@@ -99,14 +108,14 @@ pub async fn login(
 // ---------------- ME ----------------
 
 pub async fn me(
-    State(state): State<AppState>,
+    State(_state): State<AppState>,
     Extension(claims): Extension<Claims>,
 ) -> Result<Json<serde_json::Value>, StatusCode> {
-    // Since we're using string IDs directly, find by ID as string
-    let user_result = users::Entity::find_by_id(&claims.sub).one(&state.db).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    if let Some(user) = user_result {
-        return Ok(Json(json!({"id": user.id, "email": user.email, "is_admin": claims.is_admin})));
-    }
-
-    Ok(Json(json!({"error": "User not found"})))
+    // Return user info directly from the JWT claims so frontend can display account
+    return Ok(Json(json!({
+        "id": claims.sub,
+        "email": claims.email,
+        "name": claims.name,
+        "is_admin": claims.is_admin
+    })));
 }

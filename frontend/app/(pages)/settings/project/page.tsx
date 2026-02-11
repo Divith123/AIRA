@@ -1,13 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 // DashboardLayout removed
 import Header from "../../../components/Header";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
 import { Save, Trash2, Info } from "lucide-react";
+import { getProject, getProjects, updateProject } from "../../../../lib/api";
 
 export default function ProjectSettingsPage() {
+  const [apiProjectId, setApiProjectId] = useState<string | null>(null);
+  const [displayProjectId, setDisplayProjectId] = useState<string>("");
   const [name, setName] = useState("Default Project");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -24,14 +27,67 @@ export default function ProjectSettingsPage() {
   });
 
   const handleSave = () => {
+    if (!apiProjectId) return;
     setSaving(true);
-    setTimeout(() => setSaving(false), 1000);
+    (async () => {
+      try {
+        const updated = await updateProject(apiProjectId, name, description);
+        setName(updated.name);
+        setDescription(updated.description || "");
+      } catch (err) {
+        console.error("Failed to save project", err);
+      } finally {
+        setSaving(false);
+      }
+    })();
   };
+
+  useEffect(() => {
+    // Resolve project id from localStorage (may be short_id or full id)
+    (async () => {
+      try {
+        const stored = typeof window !== "undefined" ? localStorage.getItem("projectId") : null;
+
+        // Fetch projects to map short_id -> id if needed
+        const projects = await getProjects();
+
+        let resolvedApiId: string | undefined;
+        let displayId = "";
+
+        if (stored) {
+          const match = projects.find((x) => x.short_id === stored || x.id === stored);
+          if (match) {
+            resolvedApiId = match.id;
+            displayId = match.short_id || match.id;
+          }
+        }
+
+        if (!resolvedApiId && projects.length > 0) {
+          resolvedApiId = projects[0].id;
+          displayId = projects[0].short_id || projects[0].id;
+        }
+
+        if (resolvedApiId) {
+          setApiProjectId(resolvedApiId);
+          setDisplayProjectId(displayId);
+          try {
+            const p = await getProject(resolvedApiId);
+            setName(p.name || "");
+            setDescription(p.description || "");
+          } catch (e) {
+            console.warn("Failed to load project details", e);
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to resolve project", e);
+      }
+    })();
+  }, []);
 
   return (
     <>
       <Header
-        projectName="Default Project"
+        projectName={name || "Project"}
         pageName="Project Settings"
         showTimeRange={false}
         actionButton={
@@ -63,7 +119,7 @@ export default function ProjectSettingsPage() {
                 <label className="block text-xs font-medium text-foreground mb-2">Project ID</label>
                 <input
                   type="text"
-                  value="p_7fzc96s"
+                  value={displayProjectId}
                   disabled
                   className="w-full px-3 py-2 rounded-md bg-gray-100 dark:bg-muted/20 border border-border text-sm text-muted-foreground cursor-not-allowed"
                 />
@@ -83,7 +139,7 @@ export default function ProjectSettingsPage() {
               <div className="relative">
                 <input
                   type="text"
-                  value="sip://[0x7fzc96s].sip.livekit.cloud"
+                  value={displayProjectId ? `sip://[${displayProjectId}].sip.livekit.cloud` : ""}
                   disabled
                   className="w-full px-3 py-2 rounded-md bg-gray-100 dark:bg-muted/20 border border-border text-sm text-muted-foreground cursor-not-allowed pr-10"
                 />

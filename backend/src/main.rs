@@ -48,6 +48,8 @@ async fn run_migrations(_db: &DatabaseConnection) {
         include_str!("../migrations/20260210000003_create_transcripts.sql"),
         include_str!("../migrations/20260210000004_seed_roles.sql"),
         include_str!("../migrations/20260210000005_seed_admin_user.sql"),
+        include_str!("../migrations/20260212000000_add_phone_to_users.sql"),
+        include_str!("../migrations/20260212010000_add_userid_shortid_to_projects.sql"),
     ];
 
     for migration in migrations {
@@ -66,6 +68,19 @@ use tower_http::trace::TraceLayer;
 use axum::extract::Request;
 
 async fn cors_middleware(req: Request, next: Next) -> Response {
+    // Read Origin header from request so we can echo it back when credentials
+    // are allowed. Browsers block responses that set Access-Control-Allow-Credentials
+    // together with a wildcard `*` origin, so we must echo the exact Origin.
+    let origin_header = req
+        .headers()
+        .get("origin")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_owned());
+
+    // Allowed methods — include common verbs used by the API
+    const ALLOWED_METHODS: &str = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+    const ALLOWED_HEADERS: &str = "content-type,authorization";
+
     if req.method() == Method::OPTIONS {
         let mut res = Response::builder()
             .status(204)
@@ -73,9 +88,15 @@ async fn cors_middleware(req: Request, next: Next) -> Response {
             .unwrap();
 
         let headers = res.headers_mut();
-        headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-        headers.insert("access-control-allow-methods", HeaderValue::from_static("GET, POST, OPTIONS"));
-        headers.insert("access-control-allow-headers", HeaderValue::from_static("content-type,authorization"));
+        if let Some(origin) = &origin_header {
+            if let Ok(val) = HeaderValue::from_str(origin) {
+                headers.insert("access-control-allow-origin", val);
+            }
+        } else {
+            headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+        }
+        headers.insert("access-control-allow-methods", HeaderValue::from_static(ALLOWED_METHODS));
+        headers.insert("access-control-allow-headers", HeaderValue::from_static(ALLOWED_HEADERS));
         headers.insert("access-control-allow-credentials", HeaderValue::from_static("true"));
 
         return res;
@@ -83,9 +104,15 @@ async fn cors_middleware(req: Request, next: Next) -> Response {
 
     let mut res = next.run(req).await;
     let headers = res.headers_mut();
-    headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-    headers.insert("access-control-allow-methods", HeaderValue::from_static("GET, POST, OPTIONS"));
-    headers.insert("access-control-allow-headers", HeaderValue::from_static("content-type,authorization"));
+    if let Some(origin) = &origin_header {
+        if let Ok(val) = HeaderValue::from_str(origin) {
+            headers.insert("access-control-allow-origin", val);
+        }
+    } else {
+        headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
+    }
+    headers.insert("access-control-allow-methods", HeaderValue::from_static(ALLOWED_METHODS));
+    headers.insert("access-control-allow-headers", HeaderValue::from_static(ALLOWED_HEADERS));
     headers.insert("access-control-allow-credentials", HeaderValue::from_static("true"));
 
     res

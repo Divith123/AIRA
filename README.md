@@ -1,6 +1,6 @@
-# LiveKit Self-Hosted Admin Dashboard
+# AIRA — Adaptive Intelligence & Real-time Automation
 
-A production-ready admin dashboard for managing self-hosted LiveKit servers, built with Rust (backend) and Next.js (frontend).
+A production-ready admin dashboard for managing self-hosted AIRA servers, built with Rust (backend) and Next.js (frontend).
 
 ## Environment Configuration
 
@@ -28,14 +28,14 @@ This project uses a single `.env` file that contains configurations for both dev
    ```
 
 4. **Start the services:**
-   ```bash
-   # Start LiveKit Core first
-   cd ../livekit-core
-   docker-compose up -d
+  ```bash
+  # Start AIRA Core first
+  cd ../aira-core
+  docker-compose up -d
 
-   # Start the admin dashboard
-   docker-compose up -d
-   ```
+  # Start the admin dashboard
+  docker-compose up -d
+  ```
 
 ### Environment Files
 
@@ -67,13 +67,13 @@ The `.env` file has two sections:
 # Uncomment these lines for development
 NODE_ENV=development
 RUST_LOG=debug
-LIVEKIT_URL=http://localhost:7880
+  LIVEKIT_URL=http://localhost:7880
 LIVEKIT_API_KEY=your_dev_key
 LIVEKIT_API_SECRET=your_dev_secret
 DATABASE_URL=sqlite://./livekit_admin.db
 JWT_SECRET=dev_jwt_secret
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
+  NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
 ```
 
 #### Production Section (ENVIRONMENT=production)
@@ -81,13 +81,13 @@ NEXT_PUBLIC_LIVEKIT_URL=ws://localhost:7880
 # Uncomment these lines for production
 NODE_ENV=production
 RUST_LOG=warn
-LIVEKIT_URL=https://livekit.yourdomain.com
+  LIVEKIT_URL=https://aira.yourdomain.com
 LIVEKIT_API_KEY=your_prod_key
 LIVEKIT_API_SECRET=your_prod_secret
 DATABASE_URL=postgresql://user:pass@host:5432/db
 JWT_SECRET=very_secure_64_char_jwt_secret
 NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-NEXT_PUBLIC_LIVEKIT_URL=wss://livekit.yourdomain.com
+  NEXT_PUBLIC_LIVEKIT_URL=wss://aira.yourdomain.com
 ```
 
 ### Docker Deployment
