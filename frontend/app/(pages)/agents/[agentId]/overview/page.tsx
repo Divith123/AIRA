@@ -149,7 +149,7 @@ export default function AgentOverviewPage() {
                  </div>
                  <div className="flex items-center justify-between">
                    <span className="text-xs text-muted-foreground font-medium">Last Deployment</span>
-                   <span className="text-xs font-medium text-foreground">3h ago by <span className="underline">D. Relatim</span></span>
+                   <span className="text-xs font-medium text-foreground">3h ago by <span className="underline">D. AIRA</span></span>
                  </div>
                  <div className="flex items-center justify-between">
                    <span className="text-xs text-muted-foreground font-medium">API Version</span>

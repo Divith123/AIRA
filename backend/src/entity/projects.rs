@@ -10,6 +10,10 @@ pub struct Model {
     pub name: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,
+    #[sea_orm(column_type = "Text")]
+    pub user_id: String,
+    #[sea_orm(column_type = "Text")]
+    pub short_id: String,
     #[sea_orm(default_value = "active")]
     pub status: String,
     pub created_at: Option<DateTime>,

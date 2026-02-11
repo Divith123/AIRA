@@ -35,7 +35,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     >
                         <Menu className="w-6 h-6" />
                     </button>
-                    <span className="font-semibold text-lg tracking-tight">Relatim</span>
+                    <span className="font-semibold text-lg tracking-tight">AIRA</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <ThemeToggle />

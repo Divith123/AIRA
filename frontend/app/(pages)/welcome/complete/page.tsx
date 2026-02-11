@@ -7,7 +7,7 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { ArrowRight, Check, Sparkles, CheckCircle2 } from "lucide-react";
 
-function RelatimLogo() {
+function AIRALogo() {
   return (
     <svg viewBox="0 0 48 48" className="w-12 h-12 drop-shadow-lg">
       <defs>
@@ -63,7 +63,7 @@ export default function CompletePage() {
     <AuthLayout>
       <div className="flex flex-col items-center mb-8">
         <div className={`transition-all duration-700 ${animate ? "scale-100 opacity-100" : "scale-50 opacity-0"}`}>
-          <RelatimLogo />
+          <AIRALogo />
         </div>
 
         
@@ -85,7 +85,7 @@ export default function CompletePage() {
           className={`text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed transition-all duration-700 delay-300 ${animate ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             }`}
         >
-          Welcome to Relatim Cloud. Your project{" "}
+          Welcome to AIRA Cloud. Your project{" "}
           <span className="text-primary font-medium">{projectName}</span> is
           ready to go.
         </p>

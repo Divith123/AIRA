@@ -1,5 +1,5 @@
 use axum::{extract::{State, Path}, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set, QueryOrder};
+use sea_orm::{ActiveModelTrait, EntityTrait, Set, QueryOrder, ColumnTrait, QueryFilter};
 use uuid::Uuid;
 use chrono::Utc;
 
@@ -21,9 +21,10 @@ fn map_project_to_response(project: projects::Model) -> ProjectResponse {
 
 pub async fn list_projects(
     State(state): State<AppState>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
 ) -> Result<Json<Vec<ProjectResponse>>, StatusCode> {
     let projects_list = Projects::find()
+        .filter(projects::Column::UserId.eq(claims.sub.clone()))
         .order_by_desc(projects::Column::CreatedAt)
         .all(&state.db)
         .await
@@ -36,26 +37,34 @@ pub async fn list_projects(
 pub async fn get_project(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
 ) -> Result<Json<ProjectResponse>, StatusCode> {
-    let project = Projects::find_by_id(id)
+    let project = Projects::find_by_id(id.clone())
         .one(&state.db)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
+
+    if project.user_id != claims.sub {
+        return Err(StatusCode::NOT_FOUND);
+    }
 
     Ok(Json(map_project_to_response(project)))
 }
 
 pub async fn create_project(
     State(state): State<AppState>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
     Json(payload): Json<CreateProjectRequest>,
 ) -> Result<Json<ProjectResponse>, StatusCode> {
+    let short_id = Uuid::new_v4().simple().to_string()[..8].to_string();
+
     let new_project = projects::ActiveModel {
         id: Set(Uuid::new_v4().to_string()),
         name: Set(payload.name),
         description: Set(payload.description),
+        user_id: Set(claims.sub.clone()),
+        short_id: Set(short_id),
         status: Set("active".to_string()),
         created_at: Set(Some(Utc::now().naive_utc())),
         updated_at: Set(Some(Utc::now().naive_utc())),
@@ -85,7 +94,7 @@ pub async fn create_project(
 pub async fn update_project(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
     Json(payload): Json<UpdateProjectRequest>,
 ) -> Result<Json<ProjectResponse>, StatusCode> {
     let project = Projects::find_by_id(id.clone())
@@ -93,6 +102,10 @@ pub async fn update_project(
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::NOT_FOUND)?;
+
+    if project.user_id != claims.sub {
+        return Err(StatusCode::NOT_FOUND);
+    }
 
     let mut active_model: projects::ActiveModel = project.into();
 
@@ -116,8 +129,18 @@ pub async fn update_project(
 pub async fn delete_project(
     State(state): State<AppState>,
     Path(id): Path<String>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
 ) -> Result<StatusCode, StatusCode> {
+    let project = Projects::find_by_id(id.clone())
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if project.user_id != claims.sub {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     Projects::delete_by_id(id)
         .exec(&state.db)
         .await
@@ -129,8 +152,18 @@ pub async fn delete_project(
 pub async fn get_ai_config(
     State(state): State<AppState>,
     Path(project_id): Path<String>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
 ) -> Result<Json<AIConfigResponse>, StatusCode> {
+    let project = Projects::find_by_id(project_id.clone())
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if project.user_id != claims.sub {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     let config = ProjectAIConfigs::find_by_id(project_id.clone())
         .one(&state.db)
         .await
@@ -155,9 +188,19 @@ pub async fn get_ai_config(
 pub async fn update_ai_config(
     State(state): State<AppState>,
     Path(project_id): Path<String>,
-    axum::extract::Extension(_claims): axum::extract::Extension<Claims>,
+    axum::extract::Extension(claims): axum::extract::Extension<Claims>,
     Json(payload): Json<UpdateAIConfigRequest>,
 ) -> Result<Json<AIConfigResponse>, StatusCode> {
+    let project = Projects::find_by_id(project_id.clone())
+        .one(&state.db)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .ok_or(StatusCode::NOT_FOUND)?;
+
+    if project.user_id != claims.sub {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
     let config = ProjectAIConfigs::find_by_id(project_id.clone())
         .one(&state.db)
         .await

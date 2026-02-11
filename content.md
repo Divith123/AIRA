@@ -1,18 +1,18 @@
-# LiveKit Self-Hosted — Explanation & Usage
+# AIRA Self-Hosted — Explanation & Usage
 
-This document explains the design, purpose, and primary usage workflows for the LiveKit self-hosted admin dashboard project. It focuses on concepts, architecture, and how an operator or developer should think about using the system — not on installation or runtime commands.
+This document explains the design, purpose, and primary usage workflows for the AIRA self-hosted admin dashboard project. It focuses on concepts, architecture, and how an operator or developer should think about using the system — not on installation or runtime commands.
 
 ## Project Purpose
 
-This repository provides an admin/control plane for managing LiveKit-based deployments. It exposes multi-tenant project management, AI-driven agents, session/room orchestration, recording and transcription, SIP/telephony bridging, observability (metrics/audit logs), and automation rules.
+This repository provides an admin/control plane for managing AIRA-based deployments. It exposes multi-tenant project management, AI-driven agents, session/room orchestration, recording and transcription, SIP/telephony bridging, observability (metrics/audit logs), and automation rules.
 
-The goal is to let organizations run LiveKit (real-time media) while operating a central dashboard that: creates rooms, manages tokens, configures agents (voice/text assistants), starts/stops recordings and egress jobs, and stores transcripts and audit records.
+The goal is to let organizations run AIRA (real-time media) while operating a central dashboard that: creates rooms, manages tokens, configures agents (voice/text assistants), starts/stops recordings and egress jobs, and stores transcripts and audit records.
 
 ## High-level Architecture
 
-- Backend (Rust): HTTP API implemented with Axum. Responsible for authentication, persistence (SeaORM), LiveKit orchestration, agent logic, ingress/egress handling, SIP integration, and background jobs.
+- Backend (Rust): HTTP API implemented with Axum. Responsible for authentication, persistence (SeaORM), AIRA orchestration, agent logic, ingress/egress handling, SIP integration, and background jobs.
 - Frontend (Next.js): Admin UI that talks to the backend API to present dashboards, manage projects/agents, and view session details and transcripts.
-- LiveKit Core: The real-time media layer (SFU, tracks, recordings). The backend instructs LiveKit to create rooms, generate tokens, and manage egress.
+- AIRA Core: The real-time media layer (SFU, tracks, recordings). The backend instructs AIRA to create rooms, generate tokens, and manage egress.
 - External Integrations: STT/TTS/LLM providers for transcripts and agents, object storage for recordings, SIP trunks for telephony.
 
 Key pieces and where to find them in the codebase:
@@ -20,7 +20,7 @@ Key pieces and where to find them in the codebase:
 - Backend wiring & routes: `backend/src/main.rs`
 - Database entities: `backend/src/entity/*`
 - API handlers: `backend/src/handlers/*`
-- Service implementations (LiveKit, AI providers): `backend/src/services/*`
+- Service implementations (AIRA, AI providers): `backend/src/services/*`
 - DB migrations and seeds: `backend/migrations/*`
 - Frontend API client: `frontend/lib/api.ts`
 - Frontend UI pages and components: `frontend/app` and `frontend/components`
@@ -29,8 +29,8 @@ Key pieces and where to find them in the codebase:
 
 - Project: A tenant or logical namespace that groups agents, settings, storage, and permissions.
 - Agent: A configured assistant (voice or LLM-backed bot) with properties such as model, voice, instructions, and behavior flags (e.g., allow interruption). Agent definitions are templates; Agent Instances are runtime copies attached to sessions.
-- Session / Room: A LiveKit room representing an interaction. Sessions have lifecycle events, participants, recordings, and transcripts.
-- Ingress: Bringing external audio/video (or SIP calls) into a LiveKit room.
+- Session / Room: An AIRA room representing an interaction. Sessions have lifecycle events, participants, recordings, and transcripts.
+- Ingress: Bringing external audio/video (or SIP calls) into an AIRA room.
 - Egress: Recording or streaming out room media to storage or an external endpoint.
 - Transcript: A time-aligned text output (STT) stored after recording or during sessions.
 - Audit Log: Immutable records of system and admin actions for traceability.
@@ -39,7 +39,7 @@ Key pieces and where to find them in the codebase:
 
 - Multi-project management with per-project AI and storage configuration.
 - Create, configure, and manage agents (voice/AI assistants).
-- Start and control LiveKit sessions/rooms and attach agents.
+- Start and control AIRA sessions/rooms and attach agents.
 - Record sessions and generate transcripts using pluggable STT providers.
 - SIP telephony integration for inbound/outbound PSTN bridging.
 - Egress workflows to save recordings or stream content to targets.
@@ -64,12 +64,12 @@ These are conceptual workflows showing how someone uses the system day-to-day.
 - Use ingress to bring an external SIP call, audio stream, or media source into the room if needed.
 
 4) Record and Transcribe
-- Enable recording or egress for a session. The backend coordinates LiveKit to capture tracks and push them to storage or streaming endpoints.
+- Enable recording or egress for a session. The backend coordinates AIRA to capture tracks and push them to storage or streaming endpoints.
 - When recording/transcription is enabled, transcripts are created using the project's STT provider and stored alongside session metadata for search and review.
 
 5) Telephony (SIP) Flows
 - Configure SIP trunks and routing rules in `SIP` settings to map inbound PSTN calls to a project or a specific room/agent.
-- Use the SIP integration for IVR flows, agent-assisted calls, or recording phone conversations into LiveKit sessions.
+- Use the SIP integration for IVR flows, agent-assisted calls, or recording phone conversations into AIRA sessions.
 
 6) Monitoring and Troubleshooting
 - Use analytics dashboard views to inspect active rooms, participant totals, and time-series metrics.
@@ -92,32 +92,24 @@ These are conceptual workflows showing how someone uses the system day-to-day.
 - Migrations are run on startup; avoid editing applied migration files — add new migration files for schema changes.
 - Treat sessions, transcripts, and audit logs as primary data; schema changes should preserve historical access.
 - Tokens and API keys are per-project or global; design decisions about scoping affect how teams share or isolate access.
-- LiveKit is the single source of truth for real-time media — the backend orchestrates and stores metadata but does not replace LiveKit's media capabilities.
+- AIRA is the single source of truth for real-time media — the backend orchestrates and stores metadata but does not replace AIRA's media capabilities.
 
 ## Where To Inspect Code (quick map)
 
 - Backend entry & routes: `backend/src/main.rs`
 - DB models / entities: `backend/src/entity/`
 - Handlers and API routes: `backend/src/handlers/`
-- Services (LiveKit, AI adapters): `backend/src/services/`
+- Services (AIRA, AI adapters): `backend/src/services/`
 - Migrations: `backend/migrations/`
 - Frontend API client: `frontend/lib/api.ts`
 - Frontend UI: `frontend/app` and `frontend/components`
 
 ## Glossary
 
-- LiveKit: Media server providing SFU, recording, and token-based auth.
-- Ingress: Bringing external media (or SIP) into a LiveKit room.
-- Egress: Persisting or streaming room media out of LiveKit.
+- AIRA: Media server providing SFU, recording, and token-based auth.
+- Ingress: Bringing external media (or SIP) into an AIRA room.
+- Egress: Persisting or streaming room media out of AIRA.
 - Agent: A configured assistant template; agent instance = runtime active participant.
 - Audit Log: Immutable system event records for compliance.
 
-## Next Steps (suggested improvements)
-
-- Expand this explanation into a developer design doc including sequence diagrams and data model diagrams.
-- Create an API reference document derived from `frontend/lib/api.ts` and the backend route handlers.
-- Add a short Quickstart conceptual guide for new operators (what to configure first, what to expect when starting sessions).
-
 ---
-
-If you want this written to `README.md` instead, or prefer separate developer docs (API reference, architecture diagram), tell me which one and I will create them next.

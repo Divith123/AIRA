@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
-import { login, getAccessToken } from "../../../lib/api";
+import { login, getAccessToken, getMe } from "../../../lib/api";
 
 function Logo() {
   return (
@@ -30,7 +30,19 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (getAccessToken()) router.push("/dashboard");
+    // Verify token by calling /api/auth/me instead of only checking presence of token
+    let mounted = true;
+    (async () => {
+      try {
+        const token = getAccessToken();
+        if (!token) return;
+        await getMe();
+        if (mounted) router.push("/dashboard");
+      } catch (e) {
+        // token invalid or expired — stay on login
+      }
+    })();
+    return () => { mounted = false; };
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {

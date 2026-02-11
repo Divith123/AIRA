@@ -28,7 +28,9 @@ import {
   Slack,
   BookOpen,
 } from "lucide-react";
-import { createProject } from "../../lib/api";
+import { createProject, getMe, logout, getProjects } from "../../lib/api";
+import { useAuth } from "../../contexts/AuthContext";
+import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -40,8 +42,10 @@ interface SidebarProps {
   user: { name: string; email: string } | null;
 }
 
-export default function LiveKitStyleSidebar({ user }: SidebarProps) {
+export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const auth = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   
@@ -53,8 +57,11 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [createProjectError, setCreateProjectError] = useState<string | null>(null);
   const [newProjectName, setNewProjectName] = useState("");
+  const [projectsList, setProjectsList] = useState<any[]>([]);
+  const [requireProjectCreation, setRequireProjectCreation] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [user, setUser] = useState<{ name: string; email: string } | null>(initialUser ?? auth?.user ?? null);
 
   // Determine which sections contain active routes
   const isTelephonyActive = pathname.startsWith("/telephony");
@@ -75,6 +82,11 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
       console.error("Failed to load sidebar state:", e);
     }
   }, []);
+
+  // Keep local user state in sync with Auth context
+  useEffect(() => {
+    if (auth && auth.user) setUser(auth.user as any);
+  }, [auth?.user]);
 
   // Auto-expand sections containing active routes
   useEffect(() => {
@@ -103,15 +115,37 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
   const handleCreateProject = async () => {
     if (newProjectName.trim()) {
       try {
-        await createProject(newProjectName.trim());
-        // Optionally refresh projects list or navigate
+        const created = await createProject(newProjectName.trim());
+        // refresh projects list
+        try { const list = await getProjects(); setProjectsList(list || []); } catch (e) { console.error(e); }
         setNewProjectName("");
         setCreateProjectOpen(false);
         setCreateProjectError(null);
+        setRequireProjectCreation(false);
+        // navigate to project settings for the created project if available
+        if (created && (created.short_id || created.id)) {
+          const sid = created.short_id || created.id;
+          try {
+            if (created.id) localStorage.setItem("projectId", created.id);
+            if (created.name) localStorage.setItem("projectName", created.name);
+          } catch (e) {
+            // ignore storage errors
+          }
+          router.push(`/${sid}/settings/project`);
+        }
       } catch (error) {
         console.error("Failed to create project:", error);
         setCreateProjectError("Failed to create project. Please try again.");
       }
+    }
+  };
+
+  const loadProjects = async () => {
+    try {
+      const list = await getProjects();
+      setProjectsList(list || []);
+    } catch (e) {
+      console.error("Failed to load projects", e);
     }
   };
 
@@ -133,11 +167,75 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [searchOpen]);
 
+  // Load projects for project switcher when sidebar mounts
+  useEffect(() => {
+    loadProjects();
+  }, []);
+
+  // Auto-select or prompt for project when projectsList or auth changes
+  useEffect(() => {
+    if (!mounted || !auth?.user) return;
+    
+    // Sync modal state: only open if there are zero projects
+    setCreateProjectOpen(projectsList.length === 0);
+    setRequireProjectCreation(projectsList.length === 0);
+
+    if (projectsList.length === 0) {
+      // No projects: modal will be forced open and user must create one
+      return;
+    }
+
+    // There are projects: ensure we have a stored project selection
+    try {
+      const stored = localStorage.getItem("projectId");
+      if (!stored) {
+        const p = projectsList[0];
+        if (p) {
+          try {
+            localStorage.setItem("projectId", p.id);
+            localStorage.setItem("projectName", p.name || "");
+          } catch (e) {
+            /* ignore storage errors */
+          }
+          const pathPartsLocal = (pathname || "").split("/").filter(Boolean);
+          if (!pathPartsLocal[0]) {
+            const target = p.short_id || p.id;
+            router.push(`/${target}/dashboard`);
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [mounted, auth?.user, projectsList]);
+
+  // derive current project preferring localStorage selection, otherwise fall back to pathname
+  const pathParts = (pathname || "").split("/").filter(Boolean);
+  const pathShort = pathParts[0] || null;
+  let storedProjectId: string | null = null;
+  if (mounted) {
+    try {
+      storedProjectId = localStorage.getItem("projectId");
+    } catch (e) {
+      storedProjectId = null;
+    }
+  }
+
+  const selectedKey = storedProjectId || pathShort;
+  const currentProject = projectsList.find((p) => p.id === selectedKey || p.short_id === selectedKey) || null;
+  const basePrefix = currentProject ? `/${currentProject.short_id ?? currentProject.id}` : "";
+
+  const makeHref = (href: string) => {
+    if (!href.startsWith("/")) href = `/${href}`;
+    return `${basePrefix}${href}`;
+  };
+
   const navItem = (href: string, label: string, Icon: any) => {
-    const isActive = pathname === href;
+    const fullHref = makeHref(href);
+    const isActive = pathname === fullHref || pathname.startsWith(fullHref + '/') || pathname.startsWith(fullHref);
     return (
       <Link
-        href={href}
+        href={fullHref}
         className={cn(
           "flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] transition-all duration-200 group relative",
           isActive
@@ -152,10 +250,11 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
   };
 
   const subItem = (href: string, label: string) => {
-    const isActive = pathname === href;
+    const fullHref = makeHref(href);
+    const isActive = pathname === fullHref || pathname.startsWith(fullHref + '/') || pathname.startsWith(fullHref);
     return (
       <Link
-        href={href}
+        href={fullHref}
         className={cn(
           "flex px-3 py-1.5 rounded-md text-[13px] transition-all duration-200",
           "ml-7",
@@ -218,10 +317,10 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-7 h-7 bg-primary rounded-md flex items-center justify-center shrink-0">
-              <Radio className="w-4 h-4 text-white" />
+            <div className="w-10 h-7 flex items-center justify-center shrink-0">
+              <img src="/aira-logo.svg" alt="AIRA" className="w-full h-full object-contain" />
             </div>
-            <span className="font-bold text-[15px] tracking-tight animate-in fade-in slide-in-from-left-2 transition-all">LiveKit</span>
+            <span className="font-bold text-[15px] tracking-tight animate-in fade-in slide-in-from-left-2 transition-all">AIRA</span>
           </div>
         </div>
 
@@ -334,7 +433,7 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <Folder className="w-4 h-4 text-accent shrink-0" />
-                  <span className="truncate">Relatim</span>
+                  <span className="truncate">{currentProject?.name || "Select project"}</span>
                 </div>
                 <ChevronDown className={cn("w-3.5 h-3.5 transition-transform opacity-50 shrink-0", projectOpen && "rotate-180")} />
               </button>
@@ -344,15 +443,38 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
                   "absolute z-[80] animate-in fade-in slide-in-from-bottom-2 duration-200",
                   "left-0 right-0 bottom-full mb-2"
                 )}>
-                  <div className="bg-background/95 border border-primary/20 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl rounded-xl overflow-hidden p-1.5">
+                  <div className="bg-background/95 border border-primary/20 shadow-[0_12px_40px_rgba(0,0,0,0.15)] backdrop-blur-xl rounded-xl overflow-hidden p-1.5 max-h-80 overflow-auto">
                     <div className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Projects</div>
-                    <button className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px] bg-primary/10 text-primary font-medium">
-                      <span className="flex items-center gap-2">
-                        <Folder className="w-4 h-4 text-accent shrink-0" />
-                        Relatim
-                      </span>
-                      <Check className="w-4 h-4" />
-                    </button>
+                    {projectsList.length === 0 && (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">No projects</div>
+                    )}
+                    {projectsList.map((p, idx) => (
+                      <button
+                        key={p.id || p.short_id || `proj-${idx}`}
+                        onClick={() => {
+                          setProjectOpen(false);
+                          const target = p.short_id ?? p.id ?? null;
+                          if (!target || target === "undefined") {
+                            console.warn("Attempted to navigate to invalid project id", p);
+                            return;
+                          }
+                          try {
+                            if (p.id) localStorage.setItem("projectId", p.id);
+                            if (p.name) localStorage.setItem("projectName", p.name);
+                          } catch (e) {
+                            // ignore storage errors
+                          }
+                          router.push(`/${target}/dashboard`);
+                        }}
+                        className={cn("w-full flex items-center justify-between px-3 py-2 rounded-lg text-[13px]", (currentProject && (currentProject.id === p.id || currentProject.short_id === p.short_id)) ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground") }
+                      >
+                        <span className="flex items-center gap-2">
+                          <Folder className="w-4 h-4 text-accent shrink-0" />
+                          <span className="truncate">{p.name}</span>
+                        </span>
+                        {(currentProject && (currentProject.id === p.id || currentProject.short_id === p.short_id)) && <Check className="w-4 h-4" />}
+                      </button>
+                    ))}
                     <button 
                       onClick={() => {
                         setCreateProjectOpen(true);
@@ -405,7 +527,7 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
                     <div className="text-xs text-muted-foreground">{user?.email ?? "hariharanpugazh@gmail.com"}</div>
                   </div>
                 </div>
-                <button className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border hover:bg-muted transition-colors bg-background">
+                <button onClick={async () => { await logout(); router.push('/login'); }} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border hover:bg-muted transition-colors bg-background">
                   Sign out
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
@@ -416,7 +538,7 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
                 <label className="flex items-start gap-3 cursor-pointer group">
                   <input type="checkbox" defaultChecked className="mt-1 w-4 h-4 rounded border-muted bg-muted accent-primary cursor-pointer" />
                   <span className="text-xs text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
-                    Help LiveKit improve our products and services by enabling cookies. 
+                    Help AIRA improve our products and services by enabling cookies. 
                     You can learn more about how we collect and store your information in our 
                     <a href="#" className="text-primary hover:underline ml-1">cookie policy</a> and 
                     <a href="#" className="text-primary hover:underline ml-1">privacy policy</a>.
@@ -473,13 +595,15 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
       {/* Create New Project Modal */}
       {createProjectOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => setCreateProjectOpen(false)} />
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => { if (!requireProjectCreation) setCreateProjectOpen(false); }} />
           <div className="relative w-full max-w-[520px] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-in zoom-in-95 fade-in duration-200 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-border/50">
               <h2 className="text-[17px] font-semibold text-foreground">Create a new project</h2>
-              <button onClick={() => setCreateProjectOpen(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
-              </button>
+              {!requireProjectCreation && (
+                <button onClick={() => setCreateProjectOpen(false)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             
             <div className="p-6 space-y-5">
@@ -509,12 +633,14 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
             </div>
 
             <div className="flex justify-end gap-3 p-6 border-t border-border/50 bg-muted/30">
-              <button 
-                onClick={() => setCreateProjectOpen(false)}
-                className="px-6 py-2 bg-muted hover:bg-muted/80 text-foreground text-[13px] font-medium rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
+              {!requireProjectCreation && (
+                <button 
+                  onClick={() => setCreateProjectOpen(false)}
+                  className="px-6 py-2 bg-muted hover:bg-muted/80 text-foreground text-[13px] font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
               <button 
                 onClick={handleCreateProject}
                 disabled={!newProjectName.trim()}
@@ -541,7 +667,7 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
                 <Search className="w-5 h-5 text-muted-foreground shrink-0" />
                 <input
                   type="text"
-                  placeholder="Search by exact ID or name within Relatim"
+                  placeholder="Search by exact ID or name within AIRA"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1 bg-transparent text-[15px] text-foreground placeholder:text-muted-foreground focus:outline-none"

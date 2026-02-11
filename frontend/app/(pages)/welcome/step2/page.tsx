@@ -18,7 +18,7 @@ const sources = [
   { id: "other", label: "Other", icon: <Sparkles className="w-6 h-6" /> },
 ];
 
-function RelatimLogo() {
+function AIRALogo() {
   return (
     <svg viewBox="0 0 48 48" className="w-12 h-12 drop-shadow-lg">
       <defs>
@@ -85,7 +85,7 @@ export default function Step2Page() {
   return (
     <AuthLayout>
       <div className="flex flex-col items-center mb-8">
-        <RelatimLogo />
+        <AIRALogo />
 
         
         <div className="flex items-center gap-3 mt-8">
@@ -100,7 +100,7 @@ export default function Step2Page() {
           Where did you hear about us?
         </h1>
         <p className="text-muted-foreground text-sm max-w-sm mx-auto leading-relaxed">
-          Help us understand how you discovered Relatim Cloud.
+          Help us understand how you discovered AIRA Cloud.
         </p>
       </div>
 

@@ -8,7 +8,7 @@ import { Button } from "../../../../components/ui/Button";
 import { Input } from "../../../../components/ui/Input";
 import { ArrowRight } from "lucide-react";
 
-function RelatimLogo() {
+function AIRALogo() {
   return (
     <svg viewBox="0 0 48 48" className="w-12 h-12 drop-shadow-lg">
       <defs>
@@ -65,7 +65,7 @@ export default function Step1Page() {
   return (
     <AuthLayout>
       <div className="flex flex-col items-center mb-8">
-        <RelatimLogo />
+        <AIRALogo />
 
         
         <div className="flex items-center gap-3 mt-8">

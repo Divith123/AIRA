@@ -16,7 +16,7 @@ import {
     Area,
 } from "recharts";
 
-// Colors from Relatim Design System - Adjusted for Light/Dark visibility
+// Colors from AIRA Design System - Adjusted for Light/Dark visibility
 const COLORS = ["var(--color-primary)", "var(--color-accent)", "var(--color-muted)", "var(--color-secondary)"];
 
 interface DataPoint {

@@ -16,6 +16,8 @@ pub struct Model {
     pub role_id: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub name: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub phone: Option<String>,
     #[sea_orm(default_value = true)]
     pub is_active: bool,
 }

@@ -14,10 +14,10 @@ import {
 } from "lucide-react";
 
 export default function SandboxPage() {
-  const [projectName, setProjectName] = useState("Relatim");
+  const [projectName, setProjectName] = useState("AIRA");
 
   useEffect(() => {
-    const name = localStorage.getItem("projectName") || "Relatim";
+    const name = localStorage.getItem("projectName") || "AIRA";
     setProjectName(name);
   }, []);
 

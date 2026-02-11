@@ -145,7 +145,7 @@ export default function IngressesPage() {
 
   return (
     <>
-      <Header projectName="RELATIM" pageName="Ingress" showTimeRange={false}
+      <Header projectName="AIRA" pageName="Ingress" showTimeRange={false}
         actionButton={
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={handleRefresh} disabled={refreshing}>
