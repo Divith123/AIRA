@@ -14,7 +14,10 @@ pub async fn list_egress(
     }
 
     let egress_list = state.lk_service.list_egress(None).await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| {
+            eprintln!("Failed to list egress: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     let response = egress_list.into_iter().map(|e| EgressResponse {
         egress_id: e.egress_id,
@@ -47,8 +50,8 @@ pub async fn start_room_composite(
             livekit_protocol::EncodedFileOutput {
                 filepath: file.filepath.clone(),
                 disable_manifest: file.disable_manifest.unwrap_or(false),
-                encryption: file.encryption.clone().unwrap_or_default(),
-                ..Default::default()
+                file_type: file.file_type.unwrap_or(0),
+                output: None, // Will be set by the service
             }
         ));
     }
@@ -57,9 +60,8 @@ pub async fn start_room_composite(
     if let Some(stream) = &req.stream {
         outputs.push(livekit_api::services::egress::EgressOutput::Stream(
             livekit_protocol::StreamOutput {
-                protocol: livekit_protocol::Protocol::default(), // Will default to RTMP
+                protocol: livekit_protocol::StreamProtocol::DefaultProtocol as i32,
                 urls: stream.urls.clone(),
-                ..Default::default()
             }
         ));
     }
@@ -67,10 +69,15 @@ pub async fn start_room_composite(
     // Add segments output if specified
     if let Some(segments) = &req.segments {
         outputs.push(livekit_api::services::egress::EgressOutput::Segments(
-            livekit_protocol::SegmentOutput {
-                filepath: segments.filepath.clone(),
+            livekit_protocol::SegmentedFileOutput {
+                filename_prefix: segments.filepath.clone().unwrap_or_else(|| format!("{}-segment", req.room_name)),
+                playlist_name: segments.playlist_name.clone(),
+                segment_duration: segments.segment_duration.unwrap_or(10),
                 disable_manifest: segments.disable_manifest.unwrap_or(false),
-                ..Default::default()
+                filename_suffix: 0, // INDEX
+                live_playlist_name: String::new(),
+                protocol: livekit_protocol::SegmentedFileProtocol::HlsProtocol as i32,
+                output: None, // Will be set by the service
             }
         ));
     }
@@ -79,7 +86,7 @@ pub async fn start_room_composite(
         layout: req.layout.clone().unwrap_or_default(),
         audio_only: req.audio_only.unwrap_or(false),
         video_only: req.video_only.unwrap_or(false),
-        encoding_options: None, // Can be set based on request
+        
         ..Default::default()
     };
 
@@ -95,7 +102,7 @@ pub async fn start_room_composite(
         egress_type: Set("room_composite".to_string()),
         room_name: Set(Some(req.room_name)),
         output_type: Set(if req.stream.is_some() { "stream".to_string() } else { "file".to_string() }),
-        status: Set(egress.status.to_string()),
+        is_active: Set(true),
         ..Default::default()
     };
 
@@ -132,8 +139,8 @@ pub async fn start_participant_egress(
             livekit_protocol::EncodedFileOutput {
                 filepath: file.filepath.clone(),
                 disable_manifest: file.disable_manifest.unwrap_or(false),
-                encryption: file.encryption.clone().unwrap_or_default(),
-                ..Default::default()
+                file_type: file.file_type.unwrap_or(0),
+                output: None, // Will be set by the service
             }
         ));
     }
@@ -142,9 +149,8 @@ pub async fn start_participant_egress(
     if let Some(stream) = &req.stream {
         outputs.push(livekit_api::services::egress::EgressOutput::Stream(
             livekit_protocol::StreamOutput {
-                protocol: livekit_protocol::Protocol::default(), // Will default to RTMP
+                protocol: livekit_protocol::StreamProtocol::DefaultProtocol as i32,
                 urls: stream.urls.clone(),
-                ..Default::default()
             }
         ));
     }
@@ -152,22 +158,22 @@ pub async fn start_participant_egress(
     // Add segments output if specified
     if let Some(segments) = &req.segments {
         outputs.push(livekit_api::services::egress::EgressOutput::Segments(
-            livekit_protocol::SegmentOutput {
-                filepath: segments.filepath.clone(),
+            livekit_protocol::SegmentedFileOutput {
+                filename_prefix: segments.filepath.clone().unwrap_or_else(|| format!("{}-segment", req.room_name)),
+                playlist_name: segments.playlist_name.clone(),
+                segment_duration: segments.segment_duration.unwrap_or(10),
                 disable_manifest: segments.disable_manifest.unwrap_or(false),
-                ..Default::default()
+                filename_suffix: 0, // INDEX
+                live_playlist_name: String::new(),
+                protocol: livekit_protocol::SegmentedFileProtocol::HlsProtocol as i32,
+                output: None, // Will be set by the service
             }
         ));
     }
 
     let options = livekit_api::services::egress::ParticipantEgressOptions {
-        audio_only: req.audio_only.unwrap_or(false),
-        video_only: req.video_only.unwrap_or(false),
-        file_outputs: vec![], // Can be set based on request
-        stream_outputs: vec![], // Can be set based on request
-        segment_outputs: vec![], // Can be set based on request
-        encoding_options: None, // Can be set based on request
-        ..Default::default()
+        screenshare: req.screenshare.unwrap_or(false),
+        encoding: Default::default(), // Use default encoding for now
     };
 
     let egress = state.lk_service.start_participant_egress(&req.room_name, &req.identity, outputs, options).await
@@ -227,8 +233,8 @@ pub async fn start_web_egress(
             livekit_protocol::EncodedFileOutput {
                 filepath: file.filepath.clone(),
                 disable_manifest: file.disable_manifest.unwrap_or(false),
-                encryption: file.encryption.clone().unwrap_or_default(),
-                ..Default::default()
+                file_type: file.file_type.unwrap_or(0),
+                output: None, // Will be set by the service
             }
         ));
     }
@@ -237,9 +243,8 @@ pub async fn start_web_egress(
     if let Some(stream) = &req.stream {
         outputs.push(livekit_api::services::egress::EgressOutput::Stream(
             livekit_protocol::StreamOutput {
-                protocol: livekit_protocol::Protocol::default(), // Will default to RTMP
+                protocol: livekit_protocol::StreamProtocol::DefaultProtocol as i32,
                 urls: stream.urls.clone(),
-                ..Default::default()
             }
         ));
     }
@@ -247,21 +252,24 @@ pub async fn start_web_egress(
     // Add segments output if specified
     if let Some(segments) = &req.segments {
         outputs.push(livekit_api::services::egress::EgressOutput::Segments(
-            livekit_protocol::SegmentOutput {
-                filepath: segments.filepath.clone(),
+            livekit_protocol::SegmentedFileOutput {
+                filename_prefix: segments.filepath.clone().unwrap_or_else(|| "web-segment".to_string()),
+                playlist_name: segments.playlist_name.clone(),
+                segment_duration: segments.segment_duration.unwrap_or(10),
                 disable_manifest: segments.disable_manifest.unwrap_or(false),
-                ..Default::default()
+                filename_suffix: 0, // INDEX
+                live_playlist_name: String::new(),
+                protocol: livekit_protocol::SegmentedFileProtocol::HlsProtocol as i32,
+                output: None, // Will be set by the service
             }
         ));
     }
 
     let options = livekit_api::services::egress::WebOptions {
-        width: req.width.unwrap_or(1920),
-        height: req.height.unwrap_or(1080),
-        scale: req.scale.unwrap_or(1.0),
-        video_only: req.video_only.unwrap_or(false),
+        encoding: Default::default(), // Use default encoding for now
         audio_only: req.audio_only.unwrap_or(false),
-        ..Default::default()
+        video_only: req.video_only.unwrap_or(false),
+        await_start_signal: req.await_start_signal.unwrap_or(false),
     };
 
     let egress = state.lk_service.start_web_egress(&req.url, outputs, options).await
@@ -292,12 +300,12 @@ pub async fn start_track_egress(
 
     // For track egress, we need to use the correct output type
     // Track egress typically uses DirectFileOutput or WebSocket output
-    let output = livekit_api::services::egress::TrackEgressOutput::DirectFile(
-        livekit_protocol::DirectFileOutput {
+    let output = livekit_api::services::egress::TrackEgressOutput::File(
+        Box::new(livekit_protocol::DirectFileOutput {
             filepath: req.filepath.clone().unwrap_or_else(|| format!("{}.mp4", req.track_sid)),
             disable_manifest: req.disable_manifest.unwrap_or(true),
             ..Default::default()
-        }
+        })
     );
 
     let egress = state.lk_service.egress_client.start_track_egress(
@@ -337,9 +345,9 @@ pub async fn start_image_egress(
     })];
     
     let options = livekit_api::services::egress::TrackCompositeOptions {
-        audio_only: req.audio_only.unwrap_or(false),
-        video_only: req.video_only.unwrap_or(false),
-        ..Default::default()
+        encoding: Default::default(), // Use default encoding for now
+        audio_track_id: req.audio_track_id.clone().unwrap_or_default(),
+        video_track_id: req.video_track_id.clone().unwrap_or_default(),
     };
 
     let egress = state.lk_service.start_track_composite_egress(&req.room_name, outputs, options).await

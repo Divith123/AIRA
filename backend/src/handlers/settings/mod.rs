@@ -153,12 +153,17 @@ pub async fn create_service_account(
     // Hash secret using shared utility
     let hashed_secret = crate::utils::password::hash_password(&client_secret);
 
+    let permissions_str = match &payload.permissions {
+        Some(perms) => Some(serde_json::to_string(perms).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?),
+        None => None,
+    };
+
     let new_sa = service_accounts::ActiveModel {
         id: Set(Uuid::new_v4().to_string()),
         name: Set(payload.name),
         client_id: Set(client_id.clone()),
         client_secret_hash: Set(hashed_secret),
-        permissions: Set(payload.permissions.map(|p| serde_json::to_string(&p).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?).transpose().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?),
+        permissions: Set(permissions_str),
         is_active: Set(true),
         created_at: Set(Some(Utc::now().naive_utc())),
         ..Default::default()

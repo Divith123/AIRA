@@ -10,12 +10,14 @@ use livekit_protocol::{
 };
 use std::env;
 use anyhow::Result;
+use reqwest::Client;
 
 pub struct LiveKitService {
     pub room_client: RoomClient,
     pub egress_client: EgressClient,
     pub ingress_client: IngressClient,
     pub sip_client: SIPClient,
+    pub http_client: Client,
 }
 
 impl LiveKitService {
@@ -24,11 +26,15 @@ impl LiveKitService {
         let api_key = env::var("LIVEKIT_API_KEY").map_err(|_| anyhow::anyhow!("LIVEKIT_API_KEY must be set"))?;
         let api_secret = env::var("LIVEKIT_API_SECRET").map_err(|_| anyhow::anyhow!("LIVEKIT_API_SECRET must be set"))?;
 
+        println!("Initializing LiveKit Service with Host: {}", host);
+        println!("API Key provided: {}", if !api_key.is_empty() { "YES" } else { "NO" });
+
         Ok(Self {
             room_client: RoomClient::with_api_key(&host, &api_key, &api_secret),
             egress_client: EgressClient::with_api_key(&host, &api_key, &api_secret),
             ingress_client: IngressClient::with_api_key(&host, &api_key, &api_secret),
             sip_client: SIPClient::with_api_key(&host, &api_key, &api_secret),
+            http_client: Client::new(),
         })
     }
 
@@ -63,6 +69,13 @@ impl LiveKitService {
     pub async fn remove_participant(&self, room: &str, identity: &str) -> Result<()> {
         self.room_client.remove_participant(room, identity).await?;
         Ok(())
+    }
+
+    pub async fn check_health(&self) -> Result<bool> {
+        let host = env::var("LIVEKIT_URL").unwrap_or_else(|_| "http://localhost:7880".to_string());
+        let url = format!("{}/healthz", host);
+        let response = self.http_client.get(&url).send().await?;
+        Ok(response.status().is_success())
     }
 
     pub async fn mute_published_track(&self, room: &str, identity: &str, track_sid: &str, muted: bool) -> Result<TrackInfo> {

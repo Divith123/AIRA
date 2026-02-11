@@ -5,8 +5,8 @@ CREATE TABLE api_keys (
     key TEXT UNIQUE NOT NULL,
     secret TEXT, -- Store the actual secret for livekit.yaml
     secret_hash TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT 1
 );
 
@@ -17,8 +17,8 @@ CREATE TABLE rooms (
     room_sid TEXT,
     max_participants INTEGER,
     empty_timeout INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT 1
 );
 
@@ -31,8 +31,8 @@ CREATE TABLE ingress (
     stream_key TEXT,
     url TEXT,
     is_enabled BOOLEAN DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create egress table
@@ -44,8 +44,8 @@ CREATE TABLE egress (
     output_type TEXT, -- FILE, STREAM
     output_url TEXT,
     is_active BOOLEAN DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create SIP table
@@ -56,8 +56,8 @@ CREATE TABLE sip (
     phone_number TEXT,
     room_name TEXT,
     is_enabled BOOLEAN DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Create configs table
@@ -67,8 +67,8 @@ CREATE TABLE configs (
     config_key TEXT NOT NULL,
     config_value TEXT,
     is_active BOOLEAN DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(service_name, config_key)
 );
 
@@ -78,7 +78,7 @@ CREATE TABLE metrics (
     metric_name TEXT NOT NULL,
     metric_value REAL,
     labels TEXT,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Indexes

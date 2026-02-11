@@ -1,13 +1,16 @@
 # Build stage
-FROM rust:1.75-slim as builder
+FROM rustlang/rust:nightly-slim as builder
+
+RUN apt-get update && apt-get install -y pkg-config libssl-dev
 
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY migrations ./migrations
 RUN cargo build --release
 
 # Runtime stage
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
 

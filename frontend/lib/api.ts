@@ -1,6 +1,6 @@
 // Use relative paths in production (nginx proxies /api to backend)
 // In development, set NEXT_PUBLIC_API_URL=http://localhost:8000
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 let accessToken: string | null = null;
 

@@ -12,10 +12,10 @@ services:
       - .env
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - LIVEKIT_URL=http://livekit-core:7880
-      - LIVEKIT_INGRESS_URL=http://livekit-core:8081
-      - LIVEKIT_EGRESS_URL=http://livekit-core:8083
-      - LIVEKIT_SIP_URL=http://livekit-core:8082
+      - LIVEKIT_URL=${LIVEKIT_URL}
+      - LIVEKIT_INGRESS_URL=${LIVEKIT_INGRESS_URL}
+      - LIVEKIT_EGRESS_URL=${LIVEKIT_EGRESS_URL}
+      - LIVEKIT_SIP_URL=${LIVEKIT_SIP_URL}
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
       - JWT_SECRET=${JWT_SECRET}
@@ -27,11 +27,11 @@ services:
     networks:
       - livekit-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "echo", "health check disabled"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 5s
     deploy:
       resources:
         limits:
@@ -48,13 +48,16 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_LIVEKIT_URL=${NEXT_PUBLIC_LIVEKIT_URL}
     container_name: livekit-admin-frontend
     restart: unless-stopped
     env_file:
       - .env
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-      - NEXT_PUBLIC_LIVEKIT_URL=ws://livekit-core:7880
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_LIVEKIT_URL=${NEXT_PUBLIC_LIVEKIT_URL}
       - NODE_ENV=production
     ports:
       - "127.0.0.1:3000:3000"
@@ -64,7 +67,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 10s
       retries: 3

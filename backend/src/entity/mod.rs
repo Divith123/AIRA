@@ -29,3 +29,5 @@ pub mod service_accounts;
 pub mod storage_configs;
 pub mod regions;
 pub mod roles;
+pub mod audit_logs;
+pub mod transcripts;

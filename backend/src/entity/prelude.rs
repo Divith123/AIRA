@@ -27,3 +27,5 @@ pub use super::service_accounts::Entity as ServiceAccounts;
 pub use super::storage_configs::Entity as StorageConfigs;
 pub use super::regions::Entity as Regions;
 pub use super::roles::Entity as Roles;
+pub use super::audit_logs::Entity as AuditLogs;
+pub use super::transcripts::Entity as Transcripts;

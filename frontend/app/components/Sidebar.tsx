@@ -227,7 +227,6 @@ export default function LiveKitStyleSidebar({ user }: SidebarProps) {
               {subItem("/telephony/calls", "Calls")}
               {subItem("/telephony/sip-trunks", "SIP Trunks")}
               {subItem("/telephony/dispatch-rules", "Dispatch Rules")}
-              {subItem("/telephony/phone-numbers", "Phone Numbers")}
             </>
           ))}
 

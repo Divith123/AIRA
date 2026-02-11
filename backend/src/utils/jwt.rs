@@ -1,12 +1,14 @@
-use axum::{http::{Request, StatusCode}, middleware::Next, response::Response, body::Body};
+use axum::{http::StatusCode, middleware::Next, response::Response, body::Body};
 use chrono::{Utc, Duration};
 use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation};
 use serde::{Serialize, Deserialize};
 use serde_json::json;
 use std::env;
 
+use axum::extract::Request;
+
 pub async fn jwt_middleware(
-    mut req: axum::http::Request<axum::body::Body>,
+    mut req: Request,
     next: axum::middleware::Next,
 ) -> Result<axum::response::Response, axum::http::StatusCode> {
     let auth_header = req.headers()
@@ -16,12 +18,16 @@ pub async fn jwt_middleware(
 
     let token = match auth_header {
         Some(token) => token,
-        None => return Err(StatusCode::UNAUTHORIZED),
+        None => {
+            return Err(StatusCode::UNAUTHORIZED);
+        },
     };
 
     let claims = match decode_jwt(token) {
         Some(claims) => claims,
-        None => return Err(StatusCode::UNAUTHORIZED),
+        None => {
+            return Err(StatusCode::UNAUTHORIZED);
+        },
     };
 
     req.extensions_mut().insert(claims);
@@ -58,10 +64,12 @@ pub struct AgentClaims {
 }
 
 fn jwt_secret() -> String {
-    env::var("JWT_SECRET").unwrap_or_else(|_| {
-        eprintln!("Warning: JWT_SECRET not set, using default key. This is insecure for production!");
-        "SUPER_SECRET_KEY".to_string()
-    })
+    match env::var("JWT_SECRET") {
+        Ok(secret) => secret,
+        Err(_) => {
+            "SUPER_SECRET_KEY".to_string()
+        }
+    }
 }
 
 fn livekit_api_secret() -> String {

@@ -195,7 +195,10 @@ export default function DashboardPage() {
                     </div>
                   ))}
                   {(!dashboardData?.overview.top_countries || dashboardData?.overview.top_countries.length === 0) && (
-                    <div className="text-muted-foreground text-xs text-center py-8">No geolocation data available</div>
+                    <div className="text-muted-foreground text-xs text-center py-8">
+                      No geolocation data available<br/>
+                      <span className="text-[10px]">Requires client-side geolocation permissions and server-side IP geolocation service</span>
+                    </div>
                   )}
                 </div>
               </AnalyticsCard>

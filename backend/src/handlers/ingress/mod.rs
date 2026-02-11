@@ -17,7 +17,10 @@ pub async fn list_ingress(
 
     let items = state.lk_service.list_ingress(None)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| {
+            eprintln!("Failed to list ingress: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
     let response = items.into_iter().map(|i| IngressResponse {
         ingress_id: i.ingress_id,
@@ -30,13 +33,13 @@ pub async fn list_ingress(
         participant_name: i.participant_name,
         reusable: i.reusable,
         state: i.state.map(|s| IngressStateResponse {
-            status: s.status.to_string(),
+            status: format!("{:?}", s.status()),
             error: s.error,
             room_id: s.room_id,
             started_at: s.started_at,
             ended_at: s.ended_at,
             resource_id: s.resource_id,
-            tracks: vec![], // Future: Map tracks if needed
+            tracks: s.tracks.into_iter().map(|t| t.sid).collect(),
         }),
     }).collect();
 

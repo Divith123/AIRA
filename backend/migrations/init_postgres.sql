@@ -1,3 +1,13 @@
+-- Users
+CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    name TEXT,
+    role_id TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Projects
 CREATE TABLE IF NOT EXISTS projects (
@@ -36,7 +46,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     total_participants INTEGER DEFAULT 0,
     active_participants INTEGER DEFAULT 0,
     project_id TEXT,
-    features TEXT, -- JSON array or comma-separated string
+    features TEXT, 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -54,7 +64,7 @@ CREATE TABLE IF NOT EXISTS analytics_snapshots (
 CREATE TABLE IF NOT EXISTS sip_trunks (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    numbers TEXT, -- JSON array string
+    numbers TEXT, 
     sip_uri TEXT,
     sip_server TEXT,
     username TEXT,
@@ -79,8 +89,8 @@ CREATE TABLE IF NOT EXISTS room_templates (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    config TEXT NOT NULL, -- JSON blob
-    is_default BOOLEAN DEFAULT 0,
+    config TEXT NOT NULL, 
+    is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -90,7 +100,7 @@ CREATE TABLE IF NOT EXISTS layout_templates (
     name TEXT NOT NULL,
     layout_type TEXT NOT NULL,
     config TEXT,
-    is_default BOOLEAN DEFAULT 0,
+    is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -110,7 +120,7 @@ CREATE TABLE IF NOT EXISTS service_accounts (
     name TEXT NOT NULL,
     client_id TEXT UNIQUE NOT NULL,
     client_secret_hash TEXT NOT NULL,
-    permissions TEXT, -- JSON array
+    permissions TEXT, 
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -125,7 +135,7 @@ CREATE TABLE IF NOT EXISTS storage_configs (
     endpoint TEXT,
     access_key TEXT,
     secret_key TEXT,
-    is_default BOOLEAN DEFAULT 0,
+    is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -135,7 +145,7 @@ CREATE TABLE IF NOT EXISTS regions (
     region_name TEXT NOT NULL,
     region_code TEXT UNIQUE NOT NULL,
     livekit_url TEXT,
-    is_default BOOLEAN DEFAULT 0,
+    is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -145,25 +155,35 @@ CREATE TABLE IF NOT EXISTS roles (
     name TEXT UNIQUE NOT NULL,
     description TEXT,
     permissions TEXT,
-    is_system BOOLEAN DEFAULT 0
+    is_system BOOLEAN DEFAULT FALSE
 );
 
--- Team Members / Users extension (if separate from users table, but likely same)
--- existing 'users' table is simple (id, email, password)
--- I'll extend 'users' or use 'team_members' if separate logic needed.
--- api.ts calls /api/settings/members.
--- Let's stick with 'team_members' as an alias or separate table for now to match 'members' logic.
--- Actually, better to ALTER logic on 'users'. But master prompt warns against temp logic.
--- I'll Create 'team_members' table to strictly follow the requirement, or rename 'users'.
--- Existing 'users' table is used by Auth.
--- I'll add columns to 'users' table via migration? No, existing schema is simple.
--- I'll create 'team_members' as a view or linked table?
--- Let's create `team_invites` or usage of `users` table + `roles`.
--- I'll ADD columns to `users` table via ALTER if possible, or just create a new table and migrate.
--- SQLite ALTER TABLE is limited.
--- I'll create `user_roles` linking table?
--- `roles` table created above.
--- I'll add `role_id` to `users`.
-ALTER TABLE users ADD COLUMN role_id TEXT REFERENCES roles(id);
-ALTER TABLE users ADD COLUMN name TEXT;
-ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+-- Agents (Merged from create_agents_tables.sql and add_project_id logic)
+CREATE TABLE IF NOT EXISTS agents (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    status TEXT DEFAULT 'offline',
+    config TEXT,
+    project_id TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Metrics (Assuming needed)
+CREATE TABLE IF NOT EXISTS agent_metrics (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT REFERENCES agents(id),
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    cpu_usage REAL,
+    memory_usage REAL,
+    active_sessions INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS agent_logs (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT REFERENCES agents(id),
+    level TEXT,
+    message TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -35,6 +35,12 @@ pub struct CreateSipDispatchRuleRequest {
     pub rule: Option<SipDispatchRule>,
     pub trunk_ids: Option<Vec<String>>,
     pub hide_phone_number: Option<bool>,
+    pub inbound_numbers: Option<Vec<String>>,
+    pub room_preset: Option<String>,
+    pub room_config: Option<serde_json::Value>,
+    pub room_name: Option<String>,
+    pub room_prefix: Option<String>,
+    pub pin: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
