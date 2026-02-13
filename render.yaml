@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: livekit-admin-backend
+    runtime: docker
+    repo: https://github.com/Divith123/selfhost-livekit
+    branch: master
+    rootDir: selfhost-livekit-admin-dash
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: LIVEKIT_URL
+        value: wss://livekit.divithselvam.in
+      - key: LIVEKIT_INGRESS_URL
+        value: https://livekit-whip.divithselvam.in
+      - key: LIVEKIT_EGRESS_URL
+        value: https://livekit.divithselvam.in:8083
+      - key: LIVEKIT_SIP_URL
+        value: https://livekit.divithselvam.in:8082
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://livekit.harlee.pro,https://livekit-api.divithselvam.in
+      - key: MAX_REQUEST_SIZE
+        value: "10485760"
+      - key: RUST_LOG
+        value: info
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - backend/**
+    autoDeploy: true
