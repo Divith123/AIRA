@@ -25,12 +25,6 @@ use sea_orm::{Database, DatabaseConnection};
 use sha2::{Digest, Sha256};
 use tracing_subscriber::EnvFilter;
 
-// Note: Rate limiting disabled for self-hosted unlimited use
-
-async fn health_handler() -> &'static str {
-    "healthy"
-}
-
 #[derive(Clone)]
 pub struct AppState {
     pub db: DatabaseConnection,
@@ -516,7 +510,6 @@ async fn main() {
     let state = AppState { db, http_client, lk_service };
 
     let app = Router::new()
-        .route("/health", axum::routing::get(health_handler))
         .route("/api/ws/events", axum::routing::get(websocket::websocket_handler).layer(axum::middleware::from_fn(crate::utils::jwt::jwt_middleware)))
         .merge(auth::routes())
         .merge(livekit::routes())
