@@ -23,6 +23,7 @@ use std::env;
 use std::time::Instant;
 use sea_orm::{Database, DatabaseConnection};
 use sha2::{Digest, Sha256};
+use tracing_subscriber::EnvFilter;
 
 // Note: Rate limiting disabled for self-hosted unlimited use
 

@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use chrono::Utc;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
-use sea_orm::{ActiveModelTrait, Set, EntityTrait, QueryFilter, ColumnTrait, prelude::Expr, QueryOrder, PaginatorTrait, QuerySelect};
+use sea_orm::{ActiveModelTrait, Set, EntityTrait, QueryFilter, ColumnTrait, prelude::Expr, QueryOrder, QuerySelect};
 use livekit_api::access_token::TokenVerifier;
 use livekit_api::webhooks::WebhookReceiver;
 

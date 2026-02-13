@@ -197,8 +197,7 @@ pub async fn register(
         password: Set(hashed_password),
         role_id: Set(Some("role_admin".to_string())),
         is_active: Set(true),
-        created_at: Set(chrono::Utc::now().naive_utc()),
-        updated_at: Set(chrono::Utc::now().naive_utc()),
+        created_at: Set(Some(chrono::Utc::now().naive_utc())),
         ..Default::default()
     };
 
