@@ -37,7 +37,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     </button>
                     <div className="flex items-center h-full py-2">
                         <div className="h-full hover:scale-110 transition-transform">
-                            <img src="/aira-logo.svg" alt="AIRA" className="h-full w-auto object-contain filter brightness-75 contrast-125 dark:invert dark:brightness-125 dark:contrast-125" />
+                            <img src="/aira-logo.svg" alt="AIRA" className="h-full w-auto object-contain dark:filter dark:invert dark:brightness-150 dark:contrast-125 dark:scale-125 dark:transition-transform dark:hover:scale-150 dark:duration-300" />
                         </div>
                     </div>
                 </div>

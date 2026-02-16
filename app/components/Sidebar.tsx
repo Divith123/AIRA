@@ -301,10 +301,10 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
         {/* Header */}
         <div className="px-6 py-6 flex items-center">
           <div className="w-14 h-14 flex items-center justify-center shrink-0">
-            <img 
-              src="/aira-logo.svg" 
-              alt="AIRA" 
-              className="w-full h-full object-contain filter brightness-75 contrast-125 dark:invert dark:brightness-125 dark:contrast-125 scale-125 transition-transform hover:scale-150 duration-300" 
+            <img
+              src="/aira-logo.svg"
+              alt="AIRA"
+              className="w-full h-full object-contain dark:filter dark:invert dark:brightness-150 dark:contrast-125 dark:scale-125 dark:transition-transform dark:hover:scale-150 dark:duration-300"
             />
           </div>
         </div>
