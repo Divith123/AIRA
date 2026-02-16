@@ -24,14 +24,14 @@ export function Select({ label, options, error, className = "", ...props }: Sele
             )}
             <div className="relative group">
                 <select
-                    className={`w-full appearance-none bg-black/20 text-foreground border border-white/10 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:bg-black/30 hover:border-white/20 glass ${error
+                    className={`w-full appearance-none bg-surface text-foreground border border-border/60 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-all cursor-pointer hover:bg-muted/5 hover:border-border/40 glass ${error
                         ? "border-error focus:border-error"
                         : ""
                         } ${className}`}
                     {...props}
                 >
                     {options.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-[#121212] text-foreground py-2">
+                        <option key={option.value} value={option.value} className="bg-background text-foreground py-2">
                             {option.label}
                         </option>
                     ))}

@@ -54,14 +54,14 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {isSidebarOpen && (
                 <div className="fixed inset-0 z-50 md:hidden">
                     <div
-                        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+                        className="absolute inset-0 bg-background/60 backdrop-blur-sm animate-fade-in"
                         onClick={() => setIsSidebarOpen(false)}
                     />
                     <div className="absolute inset-y-0 left-0 w-[260px] animate-slide-right">
                         <Sidebar user={user} />
                         <button
                             onClick={() => setIsSidebarOpen(false)}
-                            className="absolute top-4 right-[-40px] p-2 bg-surface border border-white/10 rounded-lg text-foreground shadow-lg"
+                            className="absolute top-4 right-[-40px] p-2 bg-surface border border-border/60 rounded-lg text-foreground shadow-lg"
                         >
                             <X className="w-5 h-5" />
                         </button>

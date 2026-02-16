@@ -201,7 +201,7 @@ export default function DeployAgentPage() {
         </div>
       </div>
 
-      <Card className="p-6 border-border/60 shadow-sm bg-background/60">
+          <Card className="p-6 border-border/60 shadow-sm bg-card">
         <h3 className="text-sm font-bold text-foreground mb-4">Deploy To Self-Hosted LiveKit</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -269,8 +269,8 @@ export default function DeployAgentPage() {
             </h3>
           </div>
 
-          <Card className="p-0 overflow-hidden border-border/60 shadow-sm bg-[#0a0a0b] group">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
+          <Card className="p-0 overflow-hidden border-border/60 shadow-sm bg-card group">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-muted/5">
               <span className="text-[11px] font-mono text-muted-foreground/60 uppercase">{templateName}</span>
               <Button
                 size="sm"
@@ -287,7 +287,7 @@ export default function DeployAgentPage() {
               <pre className="p-6 text-[13px] text-white/80 overflow-x-auto font-mono leading-relaxed max-h-[600px] overflow-y-auto selection:bg-primary/30">
                 <code>{templateContent}</code>
               </pre>
-              <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#0a0a0b] to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-card to-transparent pointer-events-none" />
             </div>
           </Card>
         </div>
@@ -299,29 +299,29 @@ export default function DeployAgentPage() {
           </div>
 
           <div className="space-y-4">
-            <Card className="p-0 overflow-hidden border-border/60 shadow-sm bg-[#0a0a0b]">
-              <div className="flex items-center justify-between px-6 py-3 border-b border-white/5 bg-white/[0.01]">
+            <Card className="p-0 overflow-hidden border-border/60 shadow-sm bg-card">
+              <div className="flex items-center justify-between px-6 py-3 border-b border-border/40 bg-muted/5">
                 <span className="text-[11px] font-mono text-muted-foreground/40">main.py</span>
                 <button
-                  className="text-[11px] font-bold text-white/30 hover:text-primary transition-colors uppercase tracking-widest"
+                  className="text-[11px] font-bold text-muted-foreground/60 hover:text-primary transition-colors uppercase tracking-widest"
                   onClick={() => handleCopy(PYTHON_AGENT_TEMPLATE, "mainpy")}
                 >
                   {copied === "mainpy" ? "Copied!" : "Copy File"}
                 </button>
               </div>
-              <pre className="p-5 text-[12px] text-white/70 overflow-x-auto font-mono max-h-[250px] overflow-y-auto leading-relaxed">
+              <pre className="p-5 text-[12px] text-foreground overflow-x-auto font-mono max-h-[250px] overflow-y-auto leading-relaxed">
                 <code>{PYTHON_AGENT_TEMPLATE}</code>
               </pre>
             </Card>
 
-            <Card className="p-0 overflow-hidden border-border/60 shadow-sm bg-[#0a0a0b]">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+            <Card className="p-0 overflow-hidden border-border/60 shadow-sm bg-card">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                 <span className="text-[10px] font-mono text-muted-foreground/40">requirements.txt</span>
                 <button onClick={() => handleCopy(REQUIREMENTS_TEMPLATE, "requirements")}> 
-                  <Copy className="w-3.5 h-3.5 text-white/20 hover:text-primary" />
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground/60 hover:text-primary" />
                 </button>
               </div>
-              <pre className="p-4 text-[11px] text-white/60 overflow-x-auto font-mono max-h-[180px] overflow-y-auto">
+              <pre className="p-4 text-[11px] text-foreground overflow-x-auto font-mono max-h-[180px] overflow-y-auto">
                 <code>{REQUIREMENTS_TEMPLATE}</code>
               </pre>
             </Card>

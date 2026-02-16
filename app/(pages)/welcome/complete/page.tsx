@@ -95,7 +95,7 @@ export default function CompletePage() {
         className={`transition-all duration-700 delay-500 w-full max-w-sm mx-auto ${animate ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
           }`}
       >
-        <Card variant="glass" className="p-8 border-white/5 mb-8">
+        <Card variant="glass" className="p-8 border-border/40 mb-8">
           <h3 className="text-foreground font-semibold mb-6 flex items-center gap-2 text-sm uppercase tracking-wider">
             <Sparkles className="w-4 h-4 text-primary" />
             What&apos;s next?

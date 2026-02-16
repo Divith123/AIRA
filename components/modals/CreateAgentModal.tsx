@@ -193,7 +193,7 @@ You are interacting with the user via voice, and must apply the following rules 
                     >
                         {saving ? (
                             <span className="flex items-center gap-2">
-                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
+                                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-border/50"></span>
                                 Saving...
                             </span>
                         ) : (

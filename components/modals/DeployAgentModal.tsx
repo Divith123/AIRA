@@ -47,7 +47,7 @@ export function DeployAgentModal({ isOpen, onClose, projectUrl }: DeployAgentMod
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
             <div 
                 className="w-full max-w-2xl bg-card border border-border/50 rounded-2xl shadow-2xl animate-in zoom-in-95 duration-300 overflow-hidden"
                 role="dialog"
@@ -68,15 +68,14 @@ export function DeployAgentModal({ isOpen, onClose, projectUrl }: DeployAgentMod
 
                 {/* Content */}
                 <div className="px-8 py-6 space-y-6 max-h-[70vh] overflow-y-auto">
-                    {/* Info Box */}
-                    <div id="deploy-agent-description" className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200/50 dark:border-amber-900/20 rounded-xl p-4 flex gap-4">
-                        <div className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0 mt-0.5">
-                            <Info className="w-3.5 h-3.5 text-amber-700 dark:text-amber-500" />
+                    {/* Info Box (higher contrast for light theme) */}
+                    <div id="deploy-agent-description" className="bg-muted/5 border border-border/40 rounded-xl p-4 flex gap-4">
+                        <div className="w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                            <Info className="w-4 h-4 text-amber-700 dark:text-amber-500" />
                         </div>
-                        <div className="text-[13px] text-amber-900/80 dark:text-amber-200/60 leading-relaxed">
-                            You must use the LiveKit CLI to deploy an agent to LiveKit Cloud.
-                            <br />
-                            <a href="#" className="text-amber-700 dark:text-amber-500 font-bold underline decoration-amber-700/30 hover:decoration-amber-700 transition-all">Learn more in the docs.</a>
+                        <div className="text-sm text-foreground leading-relaxed">
+                            <div className="mb-1">You must use the LiveKit CLI to deploy an agent to LiveKit Cloud.</div>
+                            <a href="#" className="text-primary font-bold underline hover:opacity-90">Learn more in the docs.</a>
                         </div>
                     </div>
 
@@ -96,12 +95,12 @@ export function DeployAgentModal({ isOpen, onClose, projectUrl }: DeployAgentMod
                                         {step.title}
                                     </div>
                                     <div className="relative group">
-                                        <pre className="bg-slate-950 border border-white/5 rounded-xl p-4 text-[12px] font-mono text-blue-400 overflow-x-auto shadow-inner">
+                                        <pre className="bg-card border border-border/40 rounded-xl p-4 text-[12px] font-mono text-blue-400 overflow-x-auto shadow-inner">
                                             <code>{step.command}</code>
                                         </pre>
                                         <button
                                             onClick={() => copyToClipboard(step.command, idx)}
-                                            className="absolute right-3 top-3 p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-white/5"
+                                            className="absolute right-3 top-3 p-2 rounded-lg bg-muted/5 hover:bg-muted/10 text-slate-400 hover:text-foreground transition-all opacity-0 group-hover:opacity-100 border border-border/40"
                                             aria-label={`Copy ${step.title} command to clipboard`}
                                         >
                                             {copiedStep === idx ? (

@@ -22,7 +22,7 @@ export function GetStartedCard({
     onSecondaryClick
 }: GetStartedCardProps) {
     return (
-        <div className="p-6 rounded-lg bg-gradient-to-br from-surface to-surface-hover border border-white/[0.06] mb-6">
+        <div className="p-6 rounded-lg bg-gradient-to-br from-surface to-surface-hover border border-border/60 mb-6">
             <div className="flex items-start justify-between">
                 <div>
                     <h2 className="text-xl font-semibold text-foreground mb-2">{title}</h2>

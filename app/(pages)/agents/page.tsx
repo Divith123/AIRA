@@ -12,6 +12,7 @@ import { getAccessToken, getProjects, getAgents, createAgent, deleteAgent, updat
 import { AgentStatCard, AgentSessionsChart } from "../../../components/AgentsCharts";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { CreateAgentModal } from "../../../components/modals/CreateAgentModal";
+import { DeployAgentModal } from "../../../components/modals/DeployAgentModal";
 import { cn } from "../../../lib/utils";
 
 interface AgentsPageProps {
@@ -32,6 +33,7 @@ export default function AgentsPage({ projectId }: AgentsPageProps) {
   useClickOutside(dropdownRef as React.RefObject<HTMLElement>, () => setIsDropdownOpen(false));
 
   const [creating, setCreating] = useState(false);
+  const [isDeployModalOpen, setIsDeployModalOpen] = useState(false);
 
   // Agent stats state
   const [agentStats, setAgentStats] = useState({
@@ -231,7 +233,7 @@ export default function AgentsPage({ projectId }: AgentsPageProps) {
                     </div>
                     </button>
                     <button
-                    onClick={() => { setIsDropdownOpen(false); handleStartInCode(); }}
+                    onClick={() => { setIsDropdownOpen(false); setIsDeployModalOpen(true); }}
                     disabled={creating}
                     className="w-full text-left p-2.5 hover:bg-muted/50 rounded-lg transition-all flex items-start gap-3 group"
                     >
@@ -249,6 +251,12 @@ export default function AgentsPage({ projectId }: AgentsPageProps) {
           </div>
         }
       />
+
+        <DeployAgentModal
+          isOpen={isDeployModalOpen}
+          onClose={() => setIsDeployModalOpen(false)}
+          projectUrl={currentProject?.id || ""}
+        />
 
       <div className="flex-1 flex flex-col p-6 space-y-10 max-w-[1400px] mx-auto w-full animate-fade-in transition-all">
         {agents.length > 0 && (
@@ -420,9 +428,9 @@ export default function AgentsPage({ projectId }: AgentsPageProps) {
                         <div className="w-2/3 h-2 bg-foreground/5 rounded-full" />
                         <div className="w-4/5 h-2 bg-foreground/5 rounded-full" />
                       </div>
-                      <div className="mt-auto p-3 bg-slate-950 rounded-xl font-mono text-[10px] text-green-400 border border-white/10 shadow-xl translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                       <div className="mt-auto p-3 bg-card rounded-xl font-mono text-[10px] text-green-400 border border-border/40 shadow-xl translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
                          <span className="text-blue-400">lk</span> agent create <span className="text-gray-500">--template</span>
-                      </div>
+                       </div>
                    </div>
                 </div>
                 <div className="p-8 space-y-3 bg-card">

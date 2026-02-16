@@ -220,7 +220,7 @@ export default function AgentLogsPage() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="h-[calc(100vh-320px)] min-h-[400px] overflow-auto bg-black rounded-lg border border-border font-mono text-sm"
+        className="h-[calc(100vh-320px)] min-h-[400px] overflow-auto bg-card rounded-lg border border-border font-mono text-sm"
       >
         {loading && logs.length === 0 ? (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -237,7 +237,7 @@ export default function AgentLogsPage() {
               <div
                 key={idx}
                 className={cn(
-                  "flex gap-4 py-1 px-2 rounded hover:bg-white/10 group",
+                  "flex gap-4 py-1 px-2 rounded hover:bg-muted/5 group",
                   log.level === "ERROR" && "bg-red-500/5"
                 )}
               >

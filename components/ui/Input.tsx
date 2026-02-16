@@ -33,11 +33,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     <input
                         type={type}
                         className={cn(
-                            "flex h-12 w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-sm text-foreground shadow-sm transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50",
+                            "flex h-12 w-full rounded-lg border border-border/60 bg-surface px-4 py-2 text-sm text-foreground shadow-sm transition-all file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 disabled:cursor-not-allowed disabled:opacity-50",
                             startIcon ? "pl-10" : "",
                             endIcon ? "pr-10" : "",
                             error && "border-error focus-visible:ring-error/50",
-                            "hover:border-white/20 hover:bg-black/30",
+                            "hover:border-border/40 hover:bg-muted/5",
                             "glass",
                             className
                         )}

@@ -70,8 +70,8 @@ export default function Step1Page() {
         
         <div className="flex items-center gap-3 mt-8">
           <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_10px_theme(colors.primary.DEFAULT)]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
-          <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
+          <div className="w-2.5 h-2.5 rounded-full bg-muted/5" />
+          <div className="w-2.5 h-2.5 rounded-full bg-muted/5" />
         </div>
       </div>
 
@@ -84,7 +84,7 @@ export default function Step1Page() {
         </p>
       </div>
 
-      <Card variant="glass" className="p-8 border-white/5 animate-slide-up">
+      <Card variant="glass" className="p-8 border-border/40 animate-slide-up">
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
             label="Project name"
@@ -92,7 +92,7 @@ export default function Step1Page() {
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
             autoFocus
-            className="bg-black/20 focus:bg-black/30"
+            className="bg-surface focus:bg-muted/5"
           />
 
           <Button

@@ -91,7 +91,7 @@ export default function Step2Page() {
         <div className="flex items-center gap-3 mt-8">
           <div className="w-2.5 h-2.5 rounded-full bg-primary" />
           <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-[0_0_10px_theme(colors.primary.DEFAULT)]" />
-          <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
+          <div className="w-2.5 h-2.5 rounded-full bg-muted/5" />
         </div>
       </div>
 
@@ -104,7 +104,7 @@ export default function Step2Page() {
         </p>
       </div>
 
-      <Card variant="glass" className="p-8 border-white/5 animate-slide-up">
+      <Card variant="glass" className="p-8 border-border/40 animate-slide-up">
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
             {sources.map((source) => (
@@ -114,7 +114,7 @@ export default function Step2Page() {
                 onClick={() => setSelectedSource(source.id)}
                 className={`p-4 rounded-xl border text-left transition-all duration-300 group ${selectedSource === source.id
                   ? "border-primary bg-primary/20 text-primary shadow-lg shadow-primary/10"
-                  : "border-white/5 bg-white/5 text-muted-foreground hover:border-white/20 hover:bg-white/10 hover:text-foreground"
+                  : "border-border/40 bg-muted/5 text-muted-foreground hover:border-border/40 hover:bg-muted/10 hover:text-foreground"
                   } flex flex-col items-start gap-3`}
               >
                 <span className={`transition-colors duration-300 ${selectedSource === source.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`}>{source.icon}</span>

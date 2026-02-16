@@ -50,6 +50,7 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
   const [resolvedProjectId, setResolvedProjectId] = useState<string | undefined>(undefined);
   const [projectName, setProjectName] = useState("Default Project");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [formData, setFormData] = useState<EgressFormData>({
     type: "room_composite",
     roomName: "",
@@ -61,8 +62,7 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
     audioOnly: false,
     videoOnly: false,
   });
-  const [isStarting, setIsStarting] = useState(false);
-
+  
   const loadData = async () => {
     if (!getAccessToken()) { router.push("/login"); return; }
     setError(null);
@@ -83,8 +83,7 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
 
       setResolvedProjectId(currentProject.id);
       setProjectName(currentProject.name || "Project");
-      localStorage.setItem("projectId", currentProject.id);
-      localStorage.setItem("projectName", currentProject.name);
+      try { localStorage.setItem("projectId", currentProject.id); localStorage.setItem("projectName", currentProject.name); } catch (e) {}
 
       const [e] = await Promise.all([getEgresses(currentProject.id)]);
       setEgresses(e);
@@ -153,10 +152,9 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
         audioOnly: false,
         videoOnly: false,
       });
+      setIsStarting(false);
     } catch (e) {
       alert("Failed to start egress. " + (e instanceof Error ? e.message : ""));
-    } finally {
-      setIsStarting(false);
     }
   };
 
@@ -337,7 +335,7 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
                     value={formData.roomName}
                     onChange={e => setFormData({ ...formData, roomName: e.target.value })}
                     placeholder="e.g. daily-standup"
-                    className="w-full bg-surface border border-white/10 rounded-lg p-2.5 focus:border-primary/50 focus:outline-none"
+                    className="w-full bg-surface border border-border/60 rounded-lg p-2.5 focus:border-primary/50 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -362,7 +360,7 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
                     value={formData.roomName}
                     onChange={e => setFormData({ ...formData, roomName: e.target.value })}
                     placeholder="e.g. daily-standup"
-                    className="w-full bg-surface border border-white/10 rounded-lg p-2.5 focus:border-primary/50 focus:outline-none"
+                    className="w-full bg-surface border border-border/60 rounded-lg p-2.5 focus:border-primary/50 focus:outline-none"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">

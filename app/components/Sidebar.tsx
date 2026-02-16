@@ -478,7 +478,7 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
       {/* User Settings Modal */}
       {userSettingsOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => setUserSettingsOpen(false)} />
+          <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => setUserSettingsOpen(false)} />
           <div className="relative w-full max-w-[420px] bg-background/95 backdrop-blur-xl border border-primary/20 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-in zoom-in-95 fade-in duration-200 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-border/50 bg-muted/20">
               <h2 className="text-[15px] font-semibold">User settings</h2>
@@ -570,7 +570,7 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
       {/* Create New Project Modal */}
       {createProjectOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => { if (!requireProjectCreation) setCreateProjectOpen(false); }} />
+          <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => { if (!requireProjectCreation) setCreateProjectOpen(false); }} />
           <div className="relative w-full max-w-[520px] bg-background/95 backdrop-blur-xl border border-border/50 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] animate-in zoom-in-95 fade-in duration-200 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-border/50">
               <h2 className="text-[17px] font-semibold text-foreground">Create a new project</h2>
@@ -631,7 +631,7 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
       {/* Search Modal */}
       {searchOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-20">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => {
+          <div className="absolute inset-0 bg-background/40 backdrop-blur-[2px] animate-in fade-in duration-300" onClick={() => {
             setSearchOpen(false);
             setSearchQuery("");
           }} />
