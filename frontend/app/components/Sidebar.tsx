@@ -172,40 +172,15 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
     loadProjects();
   }, []);
 
-  // Auto-select or prompt for project when projectsList or auth changes
+  // Only show create project dialog if user truly has zero projects
   useEffect(() => {
     if (!mounted || !auth?.user) return;
-    
-    // Sync modal state: only open if there are zero projects
-    setCreateProjectOpen(projectsList.length === 0);
-    setRequireProjectCreation(projectsList.length === 0);
-
-    if (projectsList.length === 0) {
-      // No projects: modal will be forced open and user must create one
-      return;
-    }
-
-    // There are projects: ensure we have a stored project selection
-    try {
-      const stored = localStorage.getItem("projectId");
-      if (!stored) {
-        const p = projectsList[0];
-        if (p) {
-          try {
-            localStorage.setItem("projectId", p.id);
-            localStorage.setItem("projectName", p.name || "");
-          } catch (e) {
-            /* ignore storage errors */
-          }
-          const pathPartsLocal = (pathname || "").split("/").filter(Boolean);
-          if (!pathPartsLocal[0]) {
-            const target = p.short_id || p.id;
-            router.push(`/${target}/dashboard`);
-          }
-        }
-      }
-    } catch (e) {
-      // ignore
+    if (Array.isArray(projectsList) && projectsList.length === 0) {
+      setCreateProjectOpen(true);
+      setRequireProjectCreation(true);
+    } else {
+      setCreateProjectOpen(false);
+      setRequireProjectCreation(false);
     }
   }, [mounted, auth?.user, projectsList]);
 

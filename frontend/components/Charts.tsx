@@ -26,8 +26,8 @@ interface DataPoint {
 
 export function StatsLineChart({ data, dataKey = "value", color = "#00F0FF" }: { data: any[]; dataKey?: string; color?: string }) {
     return (
-        <div className="h-[200px] w-full mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[200px] w-full min-w-[100px] min-h-[100px] mt-2">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                 <LineChart data={data}>
                     <defs>
                         <linearGradient id={`gradient-${dataKey}`} x1="0" y1="0" x2="0" y2="1">
@@ -73,8 +73,8 @@ export function StatsLineChart({ data, dataKey = "value", color = "#00F0FF" }: {
 
 export function PlatformDonutChart({ data }: { data: { name: string; value: number }[] }) {
     return (
-        <div className="h-[200px] w-full flex items-center justify-center relative">
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[200px] w-full min-w-[100px] min-h-[100px] flex items-center justify-center relative">
+            <ResponsiveContainer width="100%" height="100%" minWidth={100} minHeight={100}>
                 <PieChart>
                     <Pie
                         data={data}

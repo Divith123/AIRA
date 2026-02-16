@@ -8,7 +8,11 @@ import { Modal } from "../../../../components/ui/Modal";
 import { Globe, Trash2, ExternalLink, Copy, Check } from "lucide-react";
 import { getWebhooks, createWebhook, deleteWebhook, getApiKeys, Webhook, ApiKey } from "../../../../lib/api";
 
-export default function WebhooksPage() {
+interface WebhooksPageProps {
+  projectId?: string;
+}
+
+export default function WebhooksPage({ projectId }: WebhooksPageProps) {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
@@ -22,13 +26,13 @@ export default function WebhooksPage() {
 
   React.useEffect(() => {
     loadWebhooks();
-    getApiKeys().then(setApiKeys).catch(console.error);
-  }, []);
+    getApiKeys(projectId).then(setApiKeys).catch(console.error);
+  }, [projectId]);
 
   const loadWebhooks = async () => {
     try {
       setIsLoading(true);
-      const data = await getWebhooks();
+      const data = await getWebhooks(projectId);
       setWebhooks(data);
     } catch (error) {
       console.error("Failed to load webhooks:", error);
@@ -43,7 +47,12 @@ export default function WebhooksPage() {
     }
 
     try {
-      await createWebhook(formData.url, ["room.started", "room.finished", "participant.joined", "participant.left"]);
+      await createWebhook(
+        formData.name,
+        formData.url,
+        ["room.started", "room.finished", "participant.joined", "participant.left"],
+        projectId,
+      );
       await loadWebhooks();
       setFormData({ name: "", url: "", signingKey: "" });
       setShowCreate(false);
@@ -55,7 +64,7 @@ export default function WebhooksPage() {
   const handleDeleteWebhook = async (id: string) => {
     if (confirm("Are you sure you want to delete this webhook?")) {
       try {
-        await deleteWebhook(id);
+        await deleteWebhook(id, projectId);
         await loadWebhooks();
       } catch (error) {
         alert("Failed to delete webhook");

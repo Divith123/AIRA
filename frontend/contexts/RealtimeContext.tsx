@@ -35,7 +35,7 @@ export function RealtimeProvider({ children, wsUrl }: RealtimeProviderProps) {
 
   const defaultWsUrl = typeof window !== 'undefined' 
     ? `${getApiWebSocketBaseUrl()}/api/ws/events${getAccessToken() ? `?token=${encodeURIComponent(getAccessToken() || '')}` : ''}`
-    : 'ws://localhost:8000/api/ws/events';
+    : 'ws://localhost:3000/api/ws/events';
 
   const { isConnected, send, reconnect } = useWebSocket({
     url: wsUrl || defaultWsUrl,

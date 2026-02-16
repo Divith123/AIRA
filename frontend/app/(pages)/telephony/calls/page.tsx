@@ -5,26 +5,17 @@ import { useRouter } from "next/navigation";
 // DashboardLayout removed
 import Header from "../../../components/Header";
 import { Card } from "../../../../components/ui/Card";
-import { getAccessToken, getSipTrunks, SipTrunk, apiFetch } from "../../../../lib/api";
+import { getAccessToken, getSipTrunks, SipTrunk, getCallLogs, createOutboundCall, endCall, CallLog } from "../../../../lib/api";
 import { Phone, PhoneOutgoing, PhoneIncoming, Clock, Plus, RefreshCw, PhoneOff, Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { Button } from "../../../../components/ui/Button";
 import { Modal } from "../../../../components/ui/Modal";
 import { cn } from "../../../../lib/utils";
 
-interface CallLog {
-  id: string;
-  call_id: string;
-  from_number: string;
-  to_number: string;
-  direction: "inbound" | "outbound";
-  started_at: string;
-  ended_at?: string;
-  duration_seconds?: number;
-  status: string;
-  trunk_id?: string;
+interface CallsPageProps {
+  projectId?: string;
 }
 
-export default function CallsPage() {
+export default function CallsPage({ projectId }: CallsPageProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [projectName, setProjectName] = useState<string>("Default Project");
@@ -51,13 +42,14 @@ export default function CallsPage() {
       }
 
       try {
+        const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
         setProjectName(localStorage.getItem("projectName") || "Default Project");
 
         // Load SIP trunks and call logs
         try {
           const [trunksData, callsData] = await Promise.all([
-            getSipTrunks(),
-            apiFetch<CallLog[]>('/api/telephony/call-logs?limit=50'),
+            getSipTrunks(scopedProjectId),
+            getCallLogs(50, scopedProjectId),
           ]);
           setTrunks(trunksData || []);
           setCalls(callsData || []);
@@ -76,12 +68,13 @@ export default function CallsPage() {
     };
 
     loadData();
-  }, [router]);
+  }, [router, projectId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      const callsData = await apiFetch<CallLog[]>('/api/telephony/call-logs?limit=50');
+      const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
+      const callsData = await getCallLogs(50, scopedProjectId);
       setCalls(callsData || []);
     } catch (e) {
 
@@ -98,15 +91,13 @@ export default function CallsPage() {
 
     setCalling(true);
     try {
-      await apiFetch('/api/telephony/outbound-call', {
-        method: 'POST',
-        body: JSON.stringify({
-          trunk_id: callForm.trunkId,
-          to_number: callForm.toNumber,
-          room_name: callForm.roomName || undefined,
-          participant_identity: callForm.participantIdentity || undefined,
-        }),
-      });
+      const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
+      await createOutboundCall({
+        trunk_id: callForm.trunkId,
+        to_number: callForm.toNumber,
+        room_name: callForm.roomName || undefined,
+        participant_identity: callForm.participantIdentity || undefined,
+      }, scopedProjectId);
       setIsCallModalOpen(false);
       setCallForm({ trunkId: trunks[0]?.id || "", toNumber: "", roomName: "", participantIdentity: "" });
       handleRefresh();
@@ -120,7 +111,8 @@ export default function CallsPage() {
   const handleEndCall = async (callId: string) => {
     if (!confirm("End this call?")) return;
     try {
-      await apiFetch(`/api/telephony/calls/${callId}/end`, { method: 'POST' });
+      const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
+      await endCall(callId, scopedProjectId);
       handleRefresh();
     } catch (e) {
 
@@ -140,6 +132,10 @@ export default function CallsPage() {
     : 0;
   const totalCalls = calls.length;
   const activeCalls = calls.filter(c => c.status === "active" || c.status === "ringing");
+  const callsWithIssues = calls.filter((c) => {
+    const status = c.status.toLowerCase();
+    return status === "failed" || status === "error" || status === "busy" || status === "no_answer";
+  }).length;
 
   return (
     <>
@@ -205,7 +201,7 @@ export default function CallsPage() {
               <Info className="w-3.5 h-3.5 opacity-40" />
             </div>
             <div className="text-[64px] font-light text-primary tracking-tight">
-              0
+              {callsWithIssues}
             </div>
           </Card>
         </div>

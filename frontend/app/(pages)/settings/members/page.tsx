@@ -14,7 +14,11 @@ const roleDescriptions: Record<string, string> = {
   Admin: "Allow full access and control, including billing and user management.",
 };
 
-export default function TeamMembersPage() {
+interface TeamMembersPageProps {
+  projectId?: string;
+}
+
+export default function TeamMembersPage({ projectId: _projectId }: TeamMembersPageProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);

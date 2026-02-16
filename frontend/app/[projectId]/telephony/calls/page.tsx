@@ -1,8 +1,10 @@
-"use client";
-
-import React from "react";
 import CallsPage from "../../../(pages)/telephony/calls/page";
+import {
+  resolveProjectRouteParams,
+  type ProjectRouteProps,
+} from "../../params";
 
-export default function ProjectCallsPage(props: any) {
-  return <CallsPage />;
+export default async function ProjectCallsPage(props: ProjectRouteProps) {
+  const { projectId } = await resolveProjectRouteParams(props);
+  return <CallsPage projectId={projectId} />;
 }

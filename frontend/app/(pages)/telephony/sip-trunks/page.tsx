@@ -12,7 +12,11 @@ import { Input } from "../../../../components/ui/Input";
 import { cn } from "../../../../lib/utils";
 import { getAccessToken, getSipTrunks, createSipTrunk, deleteSipTrunk, SipTrunk } from "../../../../lib/api";
 
-export default function SipTrunksPage() {
+interface SipTrunksPageProps {
+  projectId?: string;
+}
+
+export default function SipTrunksPage({ projectId }: SipTrunksPageProps) {
   const router = useRouter();
   const [projectName, setProjectName] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,7 +28,8 @@ export default function SipTrunksPage() {
       const token = getAccessToken();
       if (!token) { router.push("/login"); return; }
       try {
-        const [trunksData] = await Promise.all([getSipTrunks()]);
+        const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
+        const [trunksData] = await Promise.all([getSipTrunks(scopedProjectId)]);
         setTrunks(trunksData);
         setProjectName(localStorage.getItem("projectName") || "My Project");
       } catch (e) {
@@ -37,18 +42,19 @@ export default function SipTrunksPage() {
       }
     };
     loadData();
-  }, [router]);
+  }, [router, projectId]);
 
   const handleCreate = async () => {
     if (!formData.name) return;
     try {
+      const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
       const newTrunk = await createSipTrunk({
         name: formData.name,
         numbers: formData.numbers.split(",").map(s => s.trim()),
         sip_server: formData.sip_server,
         username: formData.username,
         password: formData.password
-      });
+      }, scopedProjectId);
       setTrunks([newTrunk, ...trunks]);
       setIsModalOpen(false);
       setFormData({ name: "", numbers: "", sip_server: "", username: "", password: "" });
@@ -60,7 +66,8 @@ export default function SipTrunksPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this trunk?")) return;
     try {
-      await deleteSipTrunk(id);
+      const scopedProjectId = projectId || localStorage.getItem("projectId") || undefined;
+      await deleteSipTrunk(id, scopedProjectId);
       setTrunks(trunks.filter(t => t.id !== id));
     } catch (e) {
       console.error("Failed to delete trunk", e);

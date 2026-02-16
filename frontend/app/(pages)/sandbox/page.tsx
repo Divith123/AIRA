@@ -13,7 +13,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 
-export default function SandboxPage() {
+interface SandboxPageProps {
+  projectId?: string;
+}
+
+export default function SandboxPage({ projectId: _projectId }: SandboxPageProps) {
   const [projectName, setProjectName] = useState("AIRA");
 
   useEffect(() => {

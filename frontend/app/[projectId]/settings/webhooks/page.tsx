@@ -1,8 +1,10 @@
-"use client";
-
-import React from "react";
 import WebhooksPage from "../../../(pages)/settings/webhooks/page";
+import {
+  resolveProjectRouteParams,
+  type ProjectRouteProps,
+} from "../../params";
 
-export default function ProjectWebhooksPage(props: any) {
-  return <WebhooksPage />;
+export default async function ProjectWebhooksPage(props: ProjectRouteProps) {
+  const { projectId } = await resolveProjectRouteParams(props);
+  return <WebhooksPage projectId={projectId} />;
 }

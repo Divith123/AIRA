@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-// DashboardLayout removed
 import Header from "../../components/Header";
 import { Card } from "../../../components/ui/Card";
 import { RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Phone, Users as UsersIcon, Bot, ChevronDown } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
-import { getAccessToken, getSessions, getSessionStats, getProjects, Project, Session, SessionStats, SessionsListResponse } from "../../../lib/api";
+import { getAccessToken, getSessions, getSessionStats, getProjects, Project, SessionStats, SessionsListResponse } from "../../../lib/api";
 import { cn } from "../../../lib/utils";
 
 const formatDuration = (seconds: number) => {
@@ -26,13 +25,21 @@ const formatDate = (dateStr: string) => {
   });
 };
 
-export default function SessionsPage() {
+
+
+interface SessionsPageProps {
+  projectId?: string;
+}
+
+export default function SessionsPage({ projectId }: SessionsPageProps) {
   const router = useRouter();
   const [sessionsData, setSessionsData] = useState<SessionsListResponse | null>(null);
   const [stats, setStats] = useState<SessionStats | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,48 +48,107 @@ export default function SessionsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // Only show a message/block if user has zero projects
+  const showNoProjects = !loadingProjects && projects.length === 0;
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const loadData = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-
+  // Load sessions
+  const loadSessions = useCallback(async () => {
+    setLoadingSessions(true);
     setError(null);
     try {
-      const [sessionsRes, statsRes, projectsRes] = await Promise.all([
-        getSessions(page, 10, statusFilter === "all" ? undefined : statusFilter, debouncedSearch),
-        getSessionStats("24h"),
-        getProjects()
-      ]);
-
-      setSessionsData(sessionsRes);
-      setStats(statsRes);
-      setProjects(projectsRes);
-      
-      // Set current project from localStorage or first project
-      const savedProjectId = localStorage.getItem("projectId");
-      const project = projectsRes.find((p: Project) => p.id === savedProjectId) || projectsRes[0];
-      if (project) {
-        setCurrentProject(project);
+      const token = getAccessToken();
+      if (!token) {
+        router.push("/login");
+        return;
       }
+
+      const scopedProjectId = currentProject?.id;
+      const sessionsRes = await getSessions(
+        page,
+        10,
+        statusFilter === "all" ? undefined : statusFilter,
+        debouncedSearch,
+        scopedProjectId,
+      );
+      setSessionsData(sessionsRes);
     } catch (err) {
-      console.error("Failed to load sessions:", err);
       setError(err instanceof Error ? err.message : "Failed to load sessions");
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setLoadingSessions(false);
     }
-  }, [page, statusFilter, debouncedSearch, router]);
+  }, [page, statusFilter, debouncedSearch, router, currentProject]);
+
+  // Load stats
+  const loadStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      const statsRes = await getSessionStats("24h", currentProject?.id);
+      setStats(statsRes);
+    } catch (err) {
+      setStats(null);
+      setError(err instanceof Error ? `Failed to load stats: ${err.message}` : "Failed to load stats");
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [router]);
+
+  // Load projects (only if not already loaded)
+  const loadProjects = useCallback(async () => {
+    setLoadingProjects(true);
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+      const projectsRes = await getProjects();
+      setProjects(projectsRes);
+      // Set current project from localStorage or first project
+      const savedProjectId = localStorage.getItem("projectId");
+      const project =
+        projectsRes.find((p: Project) => p.id === projectId || p.short_id === projectId) ||
+        projectsRes.find((p: Project) => p.id === savedProjectId) ||
+        projectsRes[0];
+      if (project) {
+        setCurrentProject(project);
+        localStorage.setItem("projectId", project.id);
+        localStorage.setItem("projectName", project.name);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load projects");
+    } finally {
+      setLoadingProjects(false);
+    }
+  }, [router, projectId]);
+
+  // Initial load
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (!loadingProjects) {
+      loadSessions();
+      loadStats();
+    }
+  }, [loadingProjects, loadSessions, loadStats]);
+
+  // Refresh handler
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([loadSessions(), loadStats()]);
+    setRefreshing(false);
+  };
 
   // Skeleton components
   const SkeletonCard = () => (
@@ -110,27 +176,46 @@ export default function SessionsPage() {
     </tr>
   );
 
+  if (showNoProjects) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Header projectName="-" pageName="Sessions" showTimeRange={false} onRefresh={async () => {}} />
+        <div className="mt-16 p-8 rounded-xl border border-dashed border-primary/30 bg-background/80 text-center max-w-lg">
+          <h2 className="text-2xl font-bold mb-2">No Projects Found</h2>
+          <p className="text-muted-foreground mb-4">You must create a project before you can view sessions. Use the sidebar to create your first project.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <Header
         projectName={currentProject?.name || "Project"}
         pageName="Sessions"
         showTimeRange={true}
-        onRefresh={loadData}
+        onRefresh={handleRefresh}
       />
-      
       {error && (
         <div className="mx-6 md:mx-8 mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
           Error: {error}
         </div>
       )}
-
       <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
         {/* Stats Cards */}
-        {loading ? (
+        {(loadingStats || loadingProjects) ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <SkeletonCard />
             <SkeletonCard />
+          </div>
+        ) : error && !stats ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm flex items-center justify-center min-h-[120px]">
+              <span className="text-red-500 text-sm font-medium">{error}</span>
+            </Card>
+            <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm flex items-center justify-center min-h-[120px]">
+              <span className="text-red-500 text-sm font-medium">{error}</span>
+            </Card>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -142,10 +227,9 @@ export default function SessionsPage() {
                 </button>
               </div>
               <div className="text-[42px] font-light text-foreground tracking-tight">
-                {stats?.unique_participants || 0}
+                {typeof stats?.unique_participants === 'number' ? stats.unique_participants : '-'}
               </div>
             </Card>
-
             <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm">
               <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
                 Total Rooms
@@ -154,12 +238,11 @@ export default function SessionsPage() {
                 </button>
               </div>
               <div className="text-[42px] font-light text-foreground tracking-tight">
-                {stats?.total_rooms || 0}
+                {typeof stats?.total_rooms === 'number' ? stats.total_rooms : '-'}
               </div>
             </Card>
           </div>
         )}
-
         {/* Sessions Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -181,7 +264,6 @@ export default function SessionsPage() {
               </div>
             </div>
           </div>
-
           <div className="bg-background border border-border/60 rounded-xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-[13px] border-collapse">
@@ -201,7 +283,7 @@ export default function SessionsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                  {loading ? (
+                  {loadingSessions ? (
                     Array.from({ length: 5 }).map((_, i) => <SkeletonTableRow key={i} />)
                   ) : (
                     <>
@@ -257,7 +339,6 @@ export default function SessionsPage() {
                           </td>
                         </tr>
                       ))}
-
                       {(!sessionsData?.data || sessionsData.data.length === 0) && (
                         <tr>
                           <td colSpan={8} className="px-6 py-24 text-center">
@@ -272,8 +353,7 @@ export default function SessionsPage() {
                 </tbody>
               </table>
             </div>
-
-            {sessionsData && sessionsData.total > 10 && !loading && (
+            {sessionsData && sessionsData.total > 10 && !loadingSessions && (
               <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/10">
                 <Button
                   variant="ghost"

@@ -1,89 +1,94 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "./ui/Button";
 
-interface ErrorBoundaryProps {
-  children: React.ReactNode;
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
-const ErrorBoundary: React.FC<ErrorBoundaryProps> = ({ children }) => {
-  const [hasError, setHasError] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
 
-  useEffect(() => {
-    const handleError = (error: ErrorEvent) => {
-      console.error('ErrorBoundary caught an error:', error.error);
-      setHasError(true);
-      setError(error.error);
-    };
-
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('ErrorBoundary caught an unhandled promise rejection:', event.reason);
-      setHasError(true);
-      setError(event.reason instanceof Error ? event.reason : new Error(String(event.reason)));
-    };
-
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-
-    return () => {
-      window.removeEventListener('error', handleError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
-    };
-  }, []);
-
-  const handleRetry = () => {
-    setHasError(false);
-    setError(null);
+export class ErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+    error: null,
+    errorInfo: null,
   };
 
-  if (hasError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-          <div className="flex items-center justify-center mb-4">
-            <div className="h-12 w-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
-              <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-            </div>
-          </div>
-          <h1 className="text-xl font-semibold text-gray-900 dark:text-white text-center mb-2">
-            Something went wrong
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-center mb-4">
-            We encountered an error while loading the application. This might be due to a connection issue with the backend.
-          </p>
-          <div className="space-y-3">
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-            >
-              Reload Page
-            </button>
-            <button
-              onClick={handleRetry}
-              className="w-full bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-          {process.env.NODE_ENV === 'development' && error && (
-            <details className="mt-4">
-              <summary className="cursor-pointer text-sm text-gray-500 dark:text-gray-400">
-                Error Details (Development)
-              </summary>
-              <pre className="mt-2 text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded overflow-auto">
-                {error.toString()}
-              </pre>
-            </details>
-          )}
-        </div>
-      </div>
-    );
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error, errorInfo: null };
   }
 
-  return <>{children}</>;
-};
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error:", error, errorInfo);
+    this.setState({ error, errorInfo });
+  }
 
-export default ErrorBoundary;
+  private handleRefresh = () => {
+    window.location.reload();
+  };
+
+  private handleGoHome = () => {
+    window.location.href = "/";
+  };
+
+  public render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+          <div className="max-w-md w-full text-center">
+            <div className="flex justify-center mb-6">
+              <div className="p-4 rounded-full bg-red-500/10">
+                <AlertCircle className="w-12 h-12 text-red-500" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold text-foreground mb-2">
+              Something went wrong
+            </h1>
+            <p className="text-muted-foreground mb-6">
+              We apologize for the inconvenience. An unexpected error has occurred.
+            </p>
+            {this.state.error && (
+              <div className="mb-6 p-4 bg-surface rounded-lg border border-border text-left">
+                <p className="text-sm font-mono text-red-400 break-all">
+                  {this.state.error.message}
+                </p>
+              </div>
+            )}
+            <div className="flex gap-3 justify-center">
+              <Button onClick={this.handleRefresh} leftIcon={<RefreshCw className="w-4 h-4" />}>
+                Refresh Page
+              </Button>
+              <Button variant="outline" onClick={this.handleGoHome}>
+                Go Home
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Hook for functional components to handle errors
+export function useErrorHandler() {
+  const handleError = (error: unknown) => {
+    console.error("Error caught:", error);
+    // Could send to error tracking service here
+  };
+
+  return { handleError };
+}

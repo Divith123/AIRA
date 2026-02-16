@@ -7,7 +7,18 @@ import Header from "../../components/Header";
 import { Card } from "../../../components/ui/Card";
 import { Download, RefreshCw, Globe, FileVideo, Mic, Image as ImageIcon } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
-import { getAccessToken, getEgresses, stopEgress, startRoomEgress, User, Egress, apiFetch } from "../../../lib/api";
+import {
+  getAccessToken,
+  getEgresses,
+  stopEgress,
+  startRoomEgress,
+  startWebEgress,
+  startTrackEgress,
+  startImageEgress,
+  getProjects,
+  Egress,
+  Project,
+} from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import Loader from "../../../components/ui/Loader";
 import { Plus, Download as DownloadIcon, Radio, StopCircle } from "lucide-react";
@@ -26,11 +37,18 @@ interface EgressFormData {
   videoOnly: boolean;
 }
 
-export default function EgressesPage() {
+interface EgressesPageProps {
+  projectId?: string;
+}
+
+export default function EgressesPage({ projectId }: EgressesPageProps) {
   const router = useRouter();
   const [egresses, setEgresses] = useState<Egress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resolvedProjectId, setResolvedProjectId] = useState<string | undefined>(undefined);
+  const [projectName, setProjectName] = useState("Default Project");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState<EgressFormData>({
     type: "room_composite",
@@ -47,12 +65,32 @@ export default function EgressesPage() {
 
   const loadData = async () => {
     if (!getAccessToken()) { router.push("/login"); return; }
+    setError(null);
     try {
-      const [e] = await Promise.all([getEgresses()]);
+      const projects = await getProjects();
+      const storedProjectId = localStorage.getItem("projectId");
+      const currentProject =
+        projects.find((p: Project) => p.id === projectId || p.short_id === projectId) ||
+        projects.find((p: Project) => p.id === storedProjectId || p.short_id === storedProjectId) ||
+        projects[0];
+
+      if (!currentProject) {
+        setResolvedProjectId(undefined);
+        setProjectName("Project");
+        setEgresses([]);
+        return;
+      }
+
+      setResolvedProjectId(currentProject.id);
+      setProjectName(currentProject.name || "Project");
+      localStorage.setItem("projectId", currentProject.id);
+      localStorage.setItem("projectName", currentProject.name);
+
+      const [e] = await Promise.all([getEgresses(currentProject.id)]);
       setEgresses(e);
     } catch (err) {
       console.error("[Egresses] Failed to load data:", err);
-      // Error is handled silently - UI shows empty state
+      setError(err instanceof Error ? err.message : "Failed to load egresses");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,7 +99,7 @@ export default function EgressesPage() {
 
   useEffect(() => {
     loadData();
-  }, [router]);
+  }, [router, projectId]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -69,42 +107,37 @@ export default function EgressesPage() {
   };
 
   const handleStart = async () => {
+    if (!resolvedProjectId) {
+      alert("No project selected");
+      return;
+    }
     setIsStarting(true);
     try {
       switch (formData.type) {
         case "room_composite":
-          await startRoomEgress(formData.roomName);
+          await startRoomEgress(formData.roomName, resolvedProjectId);
           break;
         case "web":
-          await apiFetch('/api/livekit/egress/web', {
-            method: 'POST',
-            body: JSON.stringify({
-              url: formData.url,
-              audio_only: formData.audioOnly,
-              video_only: formData.videoOnly,
-              output_format: formData.outputFormat,
-            }),
-          });
+          await startWebEgress({
+            url: formData.url,
+            audio_only: formData.audioOnly,
+            video_only: formData.videoOnly,
+            output_format: formData.outputFormat,
+          }, resolvedProjectId);
           break;
         case "track":
-          await apiFetch('/api/livekit/egress/track', {
-            method: 'POST',
-            body: JSON.stringify({
-              room_name: formData.roomName,
-              track_sid: formData.trackSid,
-              output_format: formData.outputFormat,
-            }),
-          });
+          await startTrackEgress({
+            room_name: formData.roomName,
+            track_sid: formData.trackSid,
+            output_format: formData.outputFormat,
+          }, resolvedProjectId);
           break;
         case "image":
-          await apiFetch('/api/livekit/egress/image', {
-            method: 'POST',
-            body: JSON.stringify({
-              room_name: formData.roomName,
-              width: formData.width,
-              height: formData.height,
-            }),
-          });
+          await startImageEgress({
+            room_name: formData.roomName,
+            width: formData.width,
+            height: formData.height,
+          }, resolvedProjectId);
           break;
       }
       handleRefresh();
@@ -129,8 +162,9 @@ export default function EgressesPage() {
 
   const handleStop = async (id: string) => {
     if (!confirm("Stop this egress?")) return;
+    if (!resolvedProjectId) return;
     try {
-      await stopEgress(id);
+      await stopEgress(id, resolvedProjectId);
       handleRefresh();
     } catch (e) {
       console.error("[Egresses] Failed to stop egress:", e);
@@ -157,7 +191,7 @@ export default function EgressesPage() {
 
   return (
     <>
-      <Header projectName="AIRA" pageName="Egress" showTimeRange={false}
+      <Header projectName={projectName} pageName="Egress" showTimeRange={false}
         actionButton={
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={handleRefresh} leftIcon={<RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />}>
@@ -181,10 +215,14 @@ export default function EgressesPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {egresses.map((egress) => (
+              (() => {
+                const egressType = egress.type || "room_composite";
+                const egressDisplayName = egress.room_name || egress.url || "Egress";
+                return (
               <Card key={egress.egress_id} variant="glass" className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="p-2 rounded-lg bg-primary/10">
-                    {getEgressTypeIcon((egress as any).type || "room_composite")}
+                    {getEgressTypeIcon(egressType)}
                   </div>
                   <div className="flex gap-2">
                     <span className={`px-2 py-1 text-xs rounded-full ${egress.status === "starting" ? "bg-yellow-500/10 text-yellow-500" : egress.status === "active" ? "bg-green-500/10 text-green-500" : "bg-surface text-secondary"}`}>
@@ -197,11 +235,13 @@ export default function EgressesPage() {
                     )}
                   </div>
                 </div>
-                <h3 className="font-medium text-foreground mb-1">{egress.room_name || (egress as any).url || "Egress"}</h3>
-                <p className="text-xs text-muted-foreground mb-1 capitalize">{(egress as any).type || "room_composite"} egress</p>
+                <h3 className="font-medium text-foreground mb-1">{egressDisplayName}</h3>
+                <p className="text-xs text-muted-foreground mb-1 capitalize">{egressType} egress</p>
                 <p className="text-xs text-secondary font-mono truncate">{egress.egress_id}</p>
                 {egress.file_url && <a href={egress.file_url} target="_blank" className="text-xs text-[#00d4aa] mt-2 block hover:underline">Download Recording</a>}
               </Card>
+                );
+              })()
             ))}
           </div>
         )}

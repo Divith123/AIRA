@@ -1,12 +1,52 @@
-// Always prefer explicit backend URL; fallback to production API host.
-export const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "").trim();
+const CONFIGURED_API_BASE = (process.env.NEXT_PUBLIC_API_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+
+function resolveApiBase(): string {
+    // On the server we can only use configured env.
+    if (typeof window === "undefined") {
+        return CONFIGURED_API_BASE;
+    }
+
+    // When unset, browser should use same-origin by default.
+    if (!CONFIGURED_API_BASE) {
+        return "";
+    }
+
+    // In development, ignore stale cross-origin API base (common local port mismatch).
+    if (process.env.NODE_ENV !== "production") {
+        try {
+            const configuredOrigin = new URL(CONFIGURED_API_BASE).origin;
+            if (configuredOrigin !== window.location.origin) {
+                return "";
+            }
+        } catch {
+            return "";
+        }
+    }
+
+    return CONFIGURED_API_BASE;
+}
+
+// Empty string means "same-origin" for fetch requests.
+export const API_BASE = resolveApiBase();
 
 export function getApiBaseUrl(): string {
-    return API_BASE;
+    if (API_BASE) return API_BASE;
+    if (typeof window !== "undefined") return window.location.origin;
+    return "";
 }
 
 export function getApiWebSocketBaseUrl(): string {
-    const normalized = API_BASE.replace(/\/+$/, "");
+    const normalized = getApiBaseUrl().replace(/\/+$/, "");
+    if (!normalized) {
+        if (typeof window !== "undefined") {
+            return window.location.protocol === "https:"
+                ? `wss://${window.location.host}`
+                : `ws://${window.location.host}`;
+        }
+        return "";
+    }
     if (normalized.startsWith("https://")) {
         return normalized.replace("https://", "wss://");
     }
@@ -16,7 +56,114 @@ export function getApiWebSocketBaseUrl(): string {
     return normalized;
 }
 
+export function getCurrentProjectId(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("projectId");
+}
+
+function resolveProjectId(projectId?: string): string | undefined {
+    return projectId || getCurrentProjectId() || undefined;
+}
+
+function withProjectId(path: string, projectId?: string): string {
+    const resolved = resolveProjectId(projectId);
+    if (!resolved) return path;
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}project_id=${encodeURIComponent(resolved)}`;
+}
+
 let accessToken: string | null = null;
+let refreshToken: string | null = null;
+let tokenExpiry: number | null = null;
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+export function setRefreshToken(token: string | null) {
+    refreshToken = token;
+    if (typeof window !== "undefined") {
+        if (token) {
+            localStorage.setItem("refreshToken", token);
+        } else {
+            localStorage.removeItem("refreshToken");
+        }
+    }
+}
+
+export function getRefreshToken(): string | null {
+    if (refreshToken) return refreshToken;
+    if (typeof window !== "undefined") {
+        return localStorage.getItem("refreshToken");
+    }
+    return null;
+}
+
+export function setTokenExpiry(expiry: number | null) {
+    tokenExpiry = expiry;
+    if (typeof window !== "undefined") {
+        if (expiry) {
+            localStorage.setItem("tokenExpiry", String(expiry));
+        } else {
+            localStorage.removeItem("tokenExpiry");
+        }
+    }
+}
+
+export function getTokenExpiry(): number | null {
+    if (tokenExpiry) return tokenExpiry;
+    if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("tokenExpiry");
+        return stored ? parseInt(stored, 10) : null;
+    }
+    return null;
+}
+
+export function isTokenExpired(): boolean {
+    const expiry = getTokenExpiry();
+    if (!expiry) return false;
+    // Consider token expired 60 seconds before actual expiry
+    return Date.now() >= (expiry - 60) * 1000;
+}
+
+async function refreshAccessToken(): Promise<string | null> {
+    const rt = getRefreshToken();
+    if (!rt) return null;
+
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refresh_token: rt }),
+        });
+
+        if (!response.ok) {
+            return null;
+        }
+
+        const data = await response.json();
+        if (data.access_token) {
+            setAccessToken(data.access_token);
+            if (data.refresh_token) {
+                setRefreshToken(data.refresh_token);
+            }
+            if (data.expires_in) {
+                setTokenExpiry(Math.floor(Date.now() / 1000) + data.expires_in);
+            }
+            return data.access_token;
+        }
+    } catch (error) {
+        console.error("Token refresh failed:", error);
+    }
+    return null;
+}
+
+function subscribeToRefresh(callback: (token: string) => void) {
+    refreshSubscribers.push(callback);
+}
+
+function onTokenRefreshed(newToken: string) {
+    refreshSubscribers.forEach(callback => callback(newToken));
+    refreshSubscribers = [];
+}
 
 export function setAccessToken(token: string | null) {
     // sanitize token to remove any stray non-Latin1 characters that
@@ -75,8 +222,12 @@ export function getAccessToken(): string | null {
 
 export function clearAuth() {
     accessToken = null;
+    refreshToken = null;
+    tokenExpiry = null;
     if (typeof window !== "undefined") {
         localStorage.removeItem("token");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("tokenExpiry");
         localStorage.removeItem("user");
         // Remove cookie token so it disappears from Application -> Cookies
         try {
@@ -141,11 +292,45 @@ export async function apiFetch<T>(
             clearTimeout(timeoutId);
 
             if (response.status === 401) {
-                clearAuth();
-                if (typeof window !== "undefined") {
-                    window.location.href = "/login";
+                // Try to refresh token before giving up
+                if (!isRefreshing) {
+                    isRefreshing = true;
+                    try {
+                        const newToken = await refreshAccessToken();
+                        isRefreshing = false;
+                        
+                        if (newToken) {
+                            onTokenRefreshed(newToken);
+                            // Retry the original request with new token
+                            headers["Authorization"] = `Bearer ${newToken}`;
+                            continue;
+                        } else {
+                            // Refresh failed, clear auth and redirect
+                            clearAuth();
+                            if (typeof window !== "undefined") {
+                                window.location.href = "/login";
+                            }
+                            throw new Error("Session expired. Please login again.");
+                        }
+                    } catch (refreshError) {
+                        isRefreshing = false;
+                        clearAuth();
+                        if (typeof window !== "undefined") {
+                            window.location.href = "/login";
+                        }
+                        throw new Error("Session expired. Please login again.");
+                    }
+                } else {
+                    // Wait for token refresh to complete
+                    return new Promise<T>((resolve, reject) => {
+                        subscribeToRefresh((newToken) => {
+                            headers["Authorization"] = `Bearer ${newToken}`;
+                            apiFetch<T>(endpoint, options, retryOptions)
+                                .then(resolve)
+                                .catch(reject);
+                        });
+                    });
                 }
-                throw new Error("Unauthorized");
             }
 
             if (!response.ok && retryableStatuses.includes(response.status) && attempt < maxRetries) {
@@ -249,16 +434,16 @@ export interface DashboardData {
     };
 }
 
-export async function getAnalyticsSummary(): Promise<AnalyticsSummary> {
-    return apiFetch<AnalyticsSummary>("/api/analytics/summary");
+export async function getAnalyticsSummary(projectId?: string): Promise<AnalyticsSummary> {
+    return apiFetch<AnalyticsSummary>(withProjectId("/api/analytics/summary", projectId));
 }
 
-export async function getAnalyticsDashboard(range: string = "24h"): Promise<DashboardData> {
-    return apiFetch<DashboardData>(`/api/analytics/dashboard?range=${range}`);
+export async function getAnalyticsDashboard(range: string = "24h", projectId?: string): Promise<DashboardData> {
+    return apiFetch<DashboardData>(withProjectId(`/api/analytics/dashboard?range=${range}`, projectId));
 }
 
-export async function getAnalyticsTimeseries(range: string = "24h"): Promise<AnalyticsDataPoint[]> {
-    return apiFetch<AnalyticsDataPoint[]>(`/api/analytics/timeseries?range=${range}`);
+export async function getAnalyticsTimeseries(range: string = "24h", projectId?: string): Promise<AnalyticsDataPoint[]> {
+    return apiFetch<AnalyticsDataPoint[]>(withProjectId(`/api/analytics/timeseries?range=${range}`, projectId));
 }
 
 
@@ -292,15 +477,24 @@ export interface SessionStats {
     }[];
 }
 
-export async function getSessions(page = 1, limit = 20, status?: string, search?: string): Promise<SessionsListResponse> {
+export async function getSessions(page = 1, limit = 20, status?: string, search?: string, projectId?: string): Promise<SessionsListResponse> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) params.append("status", status);
     if (search) params.append("search", search);
+    const scopedProjectId = resolveProjectId(projectId);
+    if (scopedProjectId) params.append("project_id", scopedProjectId);
     return apiFetch<SessionsListResponse>(`/api/sessions/list?${params.toString()}`);
 }
 
-export async function getSessionStats(range = "24h"): Promise<SessionStats> {
-    return apiFetch<SessionStats>(`/api/sessions/stats?range=${range}`);
+export async function getProjectSessions(projectId: string, page = 1, limit = 20, status?: string, search?: string): Promise<SessionsListResponse> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) params.append("status", status);
+    if (search) params.append("search", search);
+    return apiFetch<SessionsListResponse>(`/api/projects/${projectId}/sessions?${params.toString()}`);
+}
+
+export async function getSessionStats(range = "24h", projectId?: string): Promise<SessionStats> {
+    return apiFetch<SessionStats>(withProjectId(`/api/sessions/stats?range=${range}`, projectId));
 }
 
 
@@ -338,6 +532,8 @@ export async function login(email: string, password: string): Promise<User> {
 
     let token: string = "";
     let userData: User | null = null;
+    let returnedRefreshToken: string | null = null;
+    let returnedExpiresIn: number | null = null;
     
     try {
         const parsed = JSON.parse(bodyText);
@@ -345,6 +541,10 @@ export async function login(email: string, password: string): Promise<User> {
         if (parsed.access_token) {
             token = parsed.access_token;
             userData = parsed.user;
+            returnedRefreshToken =
+                typeof parsed.refresh_token === "string" ? parsed.refresh_token : null;
+            returnedExpiresIn =
+                typeof parsed.expires_in === "number" ? parsed.expires_in : null;
         } else {
             // Legacy format - just a string token
             token = typeof parsed === "string" ? parsed : "";
@@ -357,6 +557,10 @@ export async function login(email: string, password: string): Promise<User> {
     if (!token) throw new Error("No token returned from server");
 
     setAccessToken(token);
+    setRefreshToken(returnedRefreshToken);
+    setTokenExpiry(
+        returnedExpiresIn ? Math.floor(Date.now() / 1000) + returnedExpiresIn : null,
+    );
 
     // If user data was included in response, return it directly
     if (userData) {
@@ -368,6 +572,14 @@ export async function login(email: string, password: string): Promise<User> {
 }
 
 export async function logout(): Promise<void> {
+    try {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+            method: "POST",
+            credentials: "include",
+        });
+    } catch {
+        // Ignore network/logout endpoint failures and clear local auth anyway.
+    }
     clearAuth();
 }
 
@@ -558,6 +770,25 @@ export async function deleteAgent(projectId: string, agentId: string): Promise<v
     await apiFetch(`/api/projects/${projectId}/agents/${agentId}`, { method: "DELETE" });
 }
 
+// Direct agent access without projectId (for agent detail pages)
+export async function getAgentById(agentId: string): Promise<Agent> {
+    const agent = await apiFetch<BackendAgent>(`/api/agents/${agentId}`);
+    return mapBackendAgent(agent);
+}
+
+export interface AgentMetrics {
+    total_sessions: number;
+    avg_latency_ms: number;
+    uptime_percent: number;
+    success_rate_percent: number;
+    cpu_usage?: number;
+    memory_usage?: number;
+}
+
+export async function getAgentMetrics(agentId: string): Promise<AgentMetrics> {
+    return apiFetch<AgentMetrics>(`/api/agents/${agentId}/metrics`);
+}
+
 export interface DeployAgentResponse {
     instance_id: string;
     status: string;
@@ -568,12 +799,12 @@ export interface DeployAgentResponse {
 export async function deployAgent(
     projectId: string,
     agentId: string,
-    options: { deployment_type?: "docker" | "process"; room_name?: string } = {},
+    options: { deployment_type?: "process"; room_name?: string } = {},
 ): Promise<DeployAgentResponse> {
     return apiFetch<DeployAgentResponse>(`/api/projects/${projectId}/agents/${agentId}/deploy`, {
         method: "POST",
         body: JSON.stringify({
-            deployment_type: options.deployment_type || "docker",
+            deployment_type: options.deployment_type || "process",
             room_name: options.room_name,
         }),
     });
@@ -617,6 +848,21 @@ export interface CreateDispatchRulePayload {
     inbound_numbers?: string[];
     hide_phone_number?: boolean;
     metadata?: string;
+}
+
+export interface CallLog {
+    id: string;
+    call_id: string;
+    from_number: string;
+    to_number: string;
+    direction: "inbound" | "outbound";
+    started_at: string;
+    ended_at?: string;
+    duration_seconds?: number;
+    status: string;
+    trunk_id?: string;
+    room_name?: string;
+    participant_identity?: string;
 }
 
 interface BackendSipTrunk {
@@ -666,38 +912,90 @@ function mapBackendDispatchRule(rule: BackendDispatchRule): DispatchRule {
     };
 }
 
-export async function getSipTrunks(): Promise<SipTrunk[]> {
-    const trunks = await apiFetch<BackendSipTrunk[]>("/api/telephony/sip-trunks");
+export async function getSipTrunks(projectId?: string): Promise<SipTrunk[]> {
+    const trunks = await apiFetch<BackendSipTrunk[]>(withProjectId("/api/telephony/sip-trunks", projectId));
     return trunks.map(mapBackendSipTrunk);
 }
 
-export async function createSipTrunk(trunk: Partial<SipTrunk>): Promise<SipTrunk> {
+export async function createSipTrunk(trunk: Partial<SipTrunk>, projectId?: string): Promise<SipTrunk> {
     const created = await apiFetch<BackendSipTrunk>("/api/telephony/sip-trunks", {
         method: "POST",
-        body: JSON.stringify(trunk),
+        body: JSON.stringify({ ...trunk, project_id: resolveProjectId(projectId) }),
     });
     return mapBackendSipTrunk(created);
 }
 
-export async function deleteSipTrunk(id: string): Promise<void> {
-    await apiFetch(`/api/telephony/sip-trunks/${id}`, { method: "DELETE" });
+export async function updateSipTrunk(
+    id: string,
+    trunk: Partial<SipTrunk>,
+    projectId?: string,
+): Promise<SipTrunk> {
+    const updated = await apiFetch<BackendSipTrunk>(`/api/telephony/sip-trunks/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...trunk, project_id: resolveProjectId(projectId) }),
+    });
+    return mapBackendSipTrunk(updated);
 }
 
-export async function getDispatchRules(): Promise<DispatchRule[]> {
-    const rules = await apiFetch<BackendDispatchRule[]>("/api/telephony/dispatch-rules");
+export async function deleteSipTrunk(id: string, projectId?: string): Promise<void> {
+    await apiFetch(withProjectId(`/api/telephony/sip-trunks/${id}`, projectId), { method: "DELETE" });
+}
+
+export async function getDispatchRules(projectId?: string): Promise<DispatchRule[]> {
+    const rules = await apiFetch<BackendDispatchRule[]>(withProjectId("/api/telephony/dispatch-rules", projectId));
     return rules.map(mapBackendDispatchRule);
 }
 
-export async function createDispatchRule(rule: CreateDispatchRulePayload): Promise<DispatchRule> {
+export async function createDispatchRule(rule: CreateDispatchRulePayload, projectId?: string): Promise<DispatchRule> {
     const created = await apiFetch<BackendDispatchRule>("/api/telephony/dispatch-rules", {
         method: "POST",
-        body: JSON.stringify(rule),
+        body: JSON.stringify({ ...rule, project_id: resolveProjectId(projectId) }),
     });
     return mapBackendDispatchRule(created);
 }
 
-export async function deleteDispatchRule(id: string): Promise<void> {
-    await apiFetch(`/api/telephony/dispatch-rules/${id}`, { method: "DELETE" });
+export async function updateDispatchRule(
+    id: string,
+    rule: Partial<CreateDispatchRulePayload>,
+    projectId?: string,
+): Promise<DispatchRule> {
+    const updated = await apiFetch<BackendDispatchRule>(`/api/telephony/dispatch-rules/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ ...rule, project_id: resolveProjectId(projectId) }),
+    });
+    return mapBackendDispatchRule(updated);
+}
+
+export async function deleteDispatchRule(id: string, projectId?: string): Promise<void> {
+    await apiFetch(withProjectId(`/api/telephony/dispatch-rules/${id}`, projectId), { method: "DELETE" });
+}
+
+export async function getCallLogs(limit: number = 50, projectId?: string): Promise<CallLog[]> {
+    return apiFetch<CallLog[]>(withProjectId(`/api/telephony/call-logs?limit=${limit}`, projectId));
+}
+
+export async function createOutboundCall(
+    payload: {
+        trunk_id: string;
+        to_number: string;
+        room_name?: string;
+        participant_identity?: string;
+    },
+    projectId?: string,
+): Promise<CallLog> {
+    return apiFetch<CallLog>("/api/telephony/outbound-call", {
+        method: "POST",
+        body: JSON.stringify({
+            ...payload,
+            project_id: resolveProjectId(projectId),
+        }),
+    });
+}
+
+export async function endCall(callId: string, projectId?: string): Promise<void> {
+    await apiFetch(withProjectId(`/api/telephony/calls/${callId}/end`, projectId), {
+        method: "POST",
+    });
 }
 
 
@@ -801,36 +1099,96 @@ export interface Egress {
     room_name: string;
     file_url?: string;
     started_at: string;
+    ended_at?: string;
+    room_id?: string;
+    project_id?: string;
     type?: string;
     url?: string;
+    error?: string;
 }
 
-export async function getEgresses(): Promise<Egress[]> {
-    const data = await apiFetch<Egress[]>("/api/livekit/egresses");
+export async function getEgresses(projectId?: string): Promise<Egress[]> {
+    const data = await apiFetch<Egress[]>(withProjectId("/api/livekit/egresses", projectId));
     return data.map((item) => ({
         ...item,
         status: item.status.toLowerCase().replace("egress_", ""),
     }));
 }
 
-export async function startRoomEgress(roomName: string): Promise<Egress> {
+export async function startRoomEgress(roomName: string, projectId?: string): Promise<Egress> {
     return apiFetch<Egress>("/api/livekit/egress/room-composite", {
         method: "POST",
-        body: JSON.stringify({ room_name: roomName }),
+        body: JSON.stringify({ room_name: roomName, project_id: resolveProjectId(projectId) }),
     });
 }
 
-export async function startParticipantEgress(roomName: string, participantIdentity: string, outputType: string = "file"): Promise<Egress> {
+export async function startWebEgress(
+    payload: {
+        url: string;
+        audio_only?: boolean;
+        video_only?: boolean;
+        output_format?: string;
+    },
+    projectId?: string,
+): Promise<Egress> {
+    return apiFetch<Egress>("/api/livekit/egress/web", {
+        method: "POST",
+        body: JSON.stringify({
+            ...payload,
+            project_id: resolveProjectId(projectId),
+        }),
+    });
+}
+
+export async function startParticipantEgress(roomName: string, participantIdentity: string, outputType: string = "file", projectId?: string): Promise<Egress> {
     return apiFetch<Egress>("/api/livekit/egress/participant", {
         method: "POST",
-        body: JSON.stringify({ room_name: roomName, identity: participantIdentity, output_type: outputType }),
+        body: JSON.stringify({ room_name: roomName, identity: participantIdentity, output_type: outputType, project_id: resolveProjectId(projectId) }),
     });
 }
 
-export async function stopEgress(egressId: string): Promise<void> {
+export async function startTrackEgress(
+    payload: {
+        room_name: string;
+        track_sid: string;
+        output_format?: string;
+        filepath?: string;
+        disable_manifest?: boolean;
+    },
+    projectId?: string,
+): Promise<Egress> {
+    return apiFetch<Egress>("/api/livekit/egress/track", {
+        method: "POST",
+        body: JSON.stringify({
+            ...payload,
+            project_id: resolveProjectId(projectId),
+        }),
+    });
+}
+
+export async function startImageEgress(
+    payload: {
+        room_name: string;
+        width: number;
+        height: number;
+        filename_prefix?: string;
+        capture_interval?: number;
+    },
+    projectId?: string,
+): Promise<Egress> {
+    return apiFetch<Egress>("/api/livekit/egress/image", {
+        method: "POST",
+        body: JSON.stringify({
+            ...payload,
+            project_id: resolveProjectId(projectId),
+        }),
+    });
+}
+
+export async function stopEgress(egressId: string, projectId?: string): Promise<void> {
     await apiFetch("/api/livekit/egress/stop", {
         method: "POST",
-        body: JSON.stringify({ egress_id: egressId }),
+        body: JSON.stringify({ egress_id: egressId, project_id: resolveProjectId(projectId) }),
     });
 }
 
@@ -843,21 +1201,42 @@ export interface Ingress {
     status: string;
 }
 
-export async function getIngresses(): Promise<Ingress[]> {
+export async function getIngresses(projectId?: string): Promise<Ingress[]> {
     // Backend returns direct array, not wrapped object
-    const data = await apiFetch<Ingress[]>("/api/livekit/ingresses");
+    const data = await apiFetch<Ingress[]>(withProjectId("/api/livekit/ingresses", projectId));
     return data;
 }
 
-export async function createIngress(name: string, type: "rtmp" | "whip"): Promise<Ingress> {
+export async function createIngress(name: string, type: "rtmp" | "whip", projectId?: string): Promise<Ingress> {
     return apiFetch<Ingress>("/api/livekit/ingress", {
         method: "POST",
-        body: JSON.stringify({ name, ingress_type: type }),
+        body: JSON.stringify({ name, ingress_type: type, project_id: resolveProjectId(projectId) }),
     });
 }
 
-export async function deleteIngress(id: string): Promise<void> {
-    await apiFetch(`/api/livekit/ingress/${id}`, { method: "DELETE" });
+export async function createUrlIngress(
+    payload: {
+        name: string;
+        url: string;
+        room_name: string;
+        participant_identity: string;
+        participant_name: string;
+        audio_enabled: boolean;
+        video_enabled: boolean;
+    },
+    projectId?: string,
+): Promise<Ingress> {
+    return apiFetch<Ingress>("/api/livekit/ingress/url", {
+        method: "POST",
+        body: JSON.stringify({
+            ...payload,
+            project_id: resolveProjectId(projectId),
+        }),
+    });
+}
+
+export async function deleteIngress(id: string, projectId?: string): Promise<void> {
+    await apiFetch(withProjectId(`/api/livekit/ingress/${id}`, projectId), { method: "DELETE" });
 }
 
 
@@ -1152,34 +1531,34 @@ export async function getAuditLog(limit: number = 100, offset: number = 0): Prom
 
 // API KEYS & WEBHOOKS
 
-export async function getApiKeys(): Promise<ApiKey[]> {
-    return apiFetch<ApiKey[]>("/api/livekit/api-keys");
+export async function getApiKeys(projectId?: string): Promise<ApiKey[]> {
+    return apiFetch<ApiKey[]>(withProjectId("/api/livekit/api-keys", projectId));
 }
 
-export async function createApiKey(name: string): Promise<ApiKey> {
+export async function createApiKey(name: string, projectId?: string): Promise<ApiKey> {
     return apiFetch<ApiKey>("/api/livekit/api-keys", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, project_id: resolveProjectId(projectId) }),
     });
 }
 
-export async function deleteApiKey(id: string): Promise<void> {
-    await apiFetch(`/api/livekit/api-keys/${id}`, { method: "DELETE" });
+export async function deleteApiKey(id: string, projectId?: string): Promise<void> {
+    await apiFetch(withProjectId(`/api/livekit/api-keys/${id}`, projectId), { method: "DELETE" });
 }
 
-export async function getWebhooks(): Promise<Webhook[]> {
-    return apiFetch<Webhook[]>("/api/settings/webhooks");
+export async function getWebhooks(projectId?: string): Promise<Webhook[]> {
+    return apiFetch<Webhook[]>(withProjectId("/api/settings/webhooks", projectId));
 }
 
-export async function createWebhook(url: string, events: string[]): Promise<Webhook> {
+export async function createWebhook(name: string, url: string, events: string[], projectId?: string): Promise<Webhook> {
     return apiFetch<Webhook>("/api/settings/webhooks", {
         method: "POST",
-        body: JSON.stringify({ url, events }),
+        body: JSON.stringify({ name, url, events, project_id: resolveProjectId(projectId) }),
     });
 }
 
-export async function deleteWebhook(id: string): Promise<void> {
-    await apiFetch(`/api/settings/webhooks/${id}`, { method: "DELETE" });
+export async function deleteWebhook(id: string, projectId?: string): Promise<void> {
+    await apiFetch(withProjectId(`/api/settings/webhooks/${id}`, projectId), { method: "DELETE" });
 }
 
 export async function getTeamMembers(): Promise<TeamMember[]> {

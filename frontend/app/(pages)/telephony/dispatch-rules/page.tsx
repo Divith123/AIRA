@@ -8,11 +8,28 @@ import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
 import { Search, MoreVertical, Plus, Copy, Info, Trash2 } from "lucide-react";
 import { CreateDispatchRuleModal } from "../../../../components/modals/CreateDispatchRuleModal";
-import { getAccessToken, getDispatchRules, createDispatchRule, deleteDispatchRule, getSipTrunks, getAgents, getProjects, DispatchRule, Agent, SipTrunk } from "../../../../lib/api";
+import {
+  getAccessToken,
+  getDispatchRules,
+  createDispatchRule,
+  deleteDispatchRule,
+  getSipTrunks,
+  getAgents,
+  getProjects,
+  DispatchRule,
+  Agent,
+  SipTrunk,
+  Project,
+} from "../../../../lib/api";
 
-export default function DispatchRulesPage() {
+interface DispatchRulesPageProps {
+  projectId?: string;
+}
+
+export default function DispatchRulesPage({ projectId }: DispatchRulesPageProps) {
   const router = useRouter();
   const [projectName, setProjectName] = useState<string>("");
+  const [resolvedProjectId, setResolvedProjectId] = useState<string | undefined>(undefined);
   const [rules, setRules] = useState<DispatchRule[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [trunks, setTrunks] = useState<SipTrunk[]>([]);
@@ -25,18 +42,29 @@ export default function DispatchRulesPage() {
     const loadData = async () => {
       if (!getAccessToken()) { router.push("/login"); return; }
       try {
-        setProjectName(localStorage.getItem("projectName") || "AIRA");
+        const projects = await getProjects();
         const localProjectId = localStorage.getItem("projectId");
-        let projectId = localProjectId || "";
-        if (!projectId) {
-          const projects = await getProjects();
-          projectId = projects[0]?.id || "";
+        const currentProject =
+          projects.find((p: Project) => p.id === projectId || p.short_id === projectId) ||
+          projects.find((p: Project) => p.id === localProjectId || p.short_id === localProjectId) ||
+          projects[0];
+
+        if (!currentProject) {
+          setRules([]);
+          setAgents([]);
+          setTrunks([]);
+          return;
         }
 
+        setResolvedProjectId(currentProject.id);
+        setProjectName(currentProject.name || "Project");
+        localStorage.setItem("projectId", currentProject.id);
+        localStorage.setItem("projectName", currentProject.name);
+
         const [r, a, t] = await Promise.all([
-          getDispatchRules(),
-          projectId ? getAgents(projectId) : Promise.resolve([]),
-          getSipTrunks(),
+          getDispatchRules(currentProject.id),
+          getAgents(currentProject.id),
+          getSipTrunks(currentProject.id),
         ]);
         setRules(r);
         setAgents(a);
@@ -47,7 +75,7 @@ export default function DispatchRulesPage() {
       }
     };
     loadData();
-  }, [router]);
+  }, [router, projectId]);
 
   const handleCreate = async (data: {
     name: string;
@@ -57,6 +85,9 @@ export default function DispatchRulesPage() {
     agent_id?: string;
     randomize?: boolean;
   }) => {
+    if (!resolvedProjectId) {
+      throw new Error("No project selected");
+    }
     try {
       const newRule = await createDispatchRule({
         name: data.name,
@@ -65,7 +96,7 @@ export default function DispatchRulesPage() {
         trunk_id: data.trunk_id,
         agent_id: data.agent_id,
         randomize: data.randomize,
-      });
+      }, resolvedProjectId);
       setRules((prev) => [newRule, ...prev]);
     } catch (e) {
       throw e;
@@ -74,8 +105,9 @@ export default function DispatchRulesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete rule?")) return;
+    if (!resolvedProjectId) return;
     try {
-      await deleteDispatchRule(id);
+      await deleteDispatchRule(id, resolvedProjectId);
       setRules((prev) => prev.filter(r => r.id !== id));
     } catch (e) {
     }

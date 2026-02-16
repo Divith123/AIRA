@@ -1,0 +1,628 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(uuid()) @db.Text
+  email         String    @unique @db.Text
+  password      String    @db.Text
+  name          String?   @db.Text
+  emailVerified DateTime? @map("email_verified") @db.Timestamp(6)
+  image         String?   @db.Text
+  phone         String?   @db.Text
+  ownerId       String?   @map("owner_id") @db.Text
+  roleId        String?   @map("role_id") @db.Text
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  owner      User?     @relation("UserOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members    User[]    @relation("UserOwner")
+  role       Role?     @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  projects   Project[] @relation("ProjectOwner")
+  apiKeys    ApiKey[]
+  configs    Config[]
+  accounts   Account[]
+  sessions   Session[]
+  authenticators Authenticator[]
+  activities AuditLog[] @relation("AuditActor")
+
+  @@index([ownerId], map: "idx_users_owner_id")
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId], map: "auth_accounts_provider_provider_account_id_key")
+  @@map("auth_accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime @db.Timestamp(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("auth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime @db.Timestamp(6)
+
+  @@unique([identifier, token], map: "auth_verification_tokens_identifier_token_key")
+  @@map("auth_verification_tokens")
+}
+
+model Authenticator {
+  credentialID         String  @unique @map("credential_id")
+  userId               String  @map("user_id")
+  providerAccountId    String  @map("provider_account_id")
+  credentialPublicKey  String  @map("credential_public_key")
+  counter              Int
+  credentialDeviceType String  @map("credential_device_type")
+  credentialBackedUp   Boolean @map("credential_backed_up")
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+  @@map("authenticators")
+}
+
+model Role {
+  id          String @id @db.Text
+  name        String @unique @db.Text
+  description String? @db.Text
+  permissions String? @db.Text
+  isSystem    Boolean @default(false) @map("is_system")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model Project {
+  id          String    @id @db.Text
+  shortId     String?   @unique(map: "idx_projects_short_id") @map("short_id") @db.Text
+  userId      String?   @map("user_id") @db.Text
+  name        String    @db.Text
+  description String?   @db.Text
+  status      String    @default("active") @db.Text
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  user             User?            @relation("ProjectOwner", fields: [userId], references: [id], onDelete: SetNull)
+  aiConfig         ProjectAiConfig?
+  liveSessions     LiveSession[]
+  agents           Agent[]
+  apiKeys          ApiKey[]
+  configs          Config[]
+  transcripts      Transcript[]
+  auditLogs        AuditLog[]
+  callLogs         CallLog[]
+  webhookEvents    WebhookEvent[]
+  autoRecordRules  AutoRecordingRule[]
+  roomTemplates    RoomTemplate[]
+  layoutTemplates  LayoutTemplate[]
+
+  @@index([userId], map: "idx_projects_user_id")
+  @@map("projects")
+}
+
+model ProjectAiConfig {
+  projectId   String  @id @map("project_id") @db.Text
+  sttMode     String? @map("stt_mode") @db.Text
+  sttProvider String? @map("stt_provider") @db.Text
+  sttModel    String? @map("stt_model") @db.Text
+  ttsMode     String? @map("tts_mode") @db.Text
+  ttsProvider String? @map("tts_provider") @db.Text
+  ttsModel    String? @map("tts_model") @db.Text
+  ttsVoice    String? @map("tts_voice") @db.Text
+  llmMode     String? @map("llm_mode") @db.Text
+  llmProvider String? @map("llm_provider") @db.Text
+  llmModel    String? @map("llm_model") @db.Text
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_ai_configs")
+}
+
+model LiveSession {
+  sid                String    @id @db.Text
+  roomName           String    @map("room_name") @db.Text
+  status             String    @db.Text
+  startTime          DateTime  @map("start_time") @db.Timestamp(6)
+  endTime            DateTime? @map("end_time") @db.Timestamp(6)
+  duration           Int       @default(0)
+  totalParticipants  Int       @default(0) @map("total_participants")
+  activeParticipants Int       @default(0) @map("active_participants")
+  projectId          String?   @map("project_id") @db.Text
+  features           String?   @db.Text
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project     Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  transcripts Transcript[]
+
+  @@index([projectId], map: "idx_sessions_project_id")
+  @@index([roomName], map: "idx_sessions_room_name")
+  @@index([startTime], map: "idx_sessions_start_time")
+  @@map("sessions")
+}
+
+model AnalyticsSnapshot {
+  id                String   @id @db.Text
+  timestamp         DateTime @default(now()) @db.Timestamp(6)
+  activeRooms       Int      @default(0) @map("active_rooms")
+  totalParticipants Int      @default(0) @map("total_participants")
+  cpuLoad           Float?   @map("cpu_load")
+  memoryUsage       Float?   @map("memory_usage")
+
+  @@index([timestamp], map: "idx_analytics_snapshots_timestamp")
+  @@map("analytics_snapshots")
+}
+
+model SipTrunk {
+  id        String   @id @db.Text
+  name      String   @db.Text
+  numbers   String?  @db.Text
+  sipUri    String?  @map("sip_uri") @db.Text
+  sipServer String?  @map("sip_server") @db.Text
+  username  String?  @db.Text
+  password  String?  @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("sip_trunks")
+}
+
+model DispatchRule {
+  id        String   @id @db.Text
+  name      String   @db.Text
+  ruleType  String   @map("rule_type") @db.Text
+  trunkId   String?  @map("trunk_id") @db.Text
+  agentId   String?  @map("agent_id") @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("dispatch_rules")
+}
+
+model RoomTemplate {
+  id          String    @id @db.Text
+  projectId   String?   @map("project_id") @db.Text
+  name        String    @db.Text
+  description String?   @db.Text
+  config      String    @db.Text
+  isDefault   Boolean   @default(false) @map("is_default")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId], map: "idx_room_templates_project_id")
+  @@map("room_templates")
+}
+
+model LayoutTemplate {
+  id         String    @id @db.Text
+  projectId  String?   @map("project_id") @db.Text
+  name       String    @db.Text
+  layoutType String    @map("layout_type") @db.Text
+  config     String?   @db.Text
+  isDefault  Boolean   @default(false) @map("is_default")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId], map: "idx_layout_templates_project_id")
+  @@map("layout_templates")
+}
+
+model AutoRecordingRule {
+  id          String    @id @db.Text
+  projectId   String?   @map("project_id") @db.Text
+  name        String    @db.Text
+  roomPattern String?   @map("room_pattern") @db.Text
+  egressType  String    @map("egress_type") @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId], map: "idx_auto_recording_rules_project_id")
+  @@map("auto_recording_rules")
+}
+
+model ServiceAccount {
+  id               String   @id @db.Text
+  name             String   @db.Text
+  clientId         String   @unique @map("client_id") @db.Text
+  clientSecretHash String   @map("client_secret_hash") @db.Text
+  permissions      String?  @db.Text
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("service_accounts")
+}
+
+model StorageConfig {
+  id          String    @id @db.Text
+  name        String    @db.Text
+  storageType String    @map("storage_type") @db.Text
+  bucket      String    @db.Text
+  region      String?   @db.Text
+  endpoint    String?   @db.Text
+  accessKey   String?   @map("access_key") @db.Text
+  secretKey   String?   @map("secret_key") @db.Text
+  isDefault   Boolean   @default(false) @map("is_default")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("storage_configs")
+}
+
+model Region {
+  id         String    @id @db.Text
+  regionName String    @map("region_name") @db.Text
+  regionCode String    @unique @map("region_code") @db.Text
+  livekitUrl String?   @map("livekit_url") @db.Text
+  isDefault  Boolean   @default(false) @map("is_default")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@map("regions")
+}
+
+model Agent {
+  id                  String    @id @db.Text
+  agentId             String    @unique @map("agent_id") @db.Text
+  displayName         String    @map("display_name") @db.Text
+  image               String    @db.Text
+  entrypoint          String?   @db.Text
+  envVars             String?   @default("{}") @map("env_vars") @db.Text
+  livekitPermissions  String?   @default("{}") @map("livekit_permissions") @db.Text
+  defaultRoomBehavior String?   @default("auto") @map("default_room_behavior") @db.Text
+  autoRestartPolicy   String?   @default("always") @map("auto_restart_policy") @db.Text
+  resourceLimits      String?   @default("{}") @map("resource_limits") @db.Text
+  isEnabled           Boolean   @default(true) @map("is_enabled")
+  projectId           String?   @map("project_id") @db.Text
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  project   Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  instances AgentInstance[]
+  logs      AgentLog[]
+  metrics   AgentMetric[]
+  rooms     AgentRoom[]
+
+  @@index([projectId], map: "idx_agents_project_id")
+  @@map("agents")
+}
+
+model AgentInstance {
+  id            String    @id @db.Text
+  agentId       String    @map("agent_id") @db.Text
+  instanceId    String    @unique @map("instance_id") @db.Text
+  containerId   String?   @map("container_id") @db.Text
+  processPid    Int?      @map("process_pid")
+  status        String    @default("stopped") @db.Text
+  lastHeartbeat DateTime? @map("last_heartbeat") @db.Timestamp(6)
+  exitCode      Int?      @map("exit_code")
+  crashReason   String?   @map("crash_reason") @db.Text
+  startedAt     DateTime? @map("started_at") @db.Timestamp(6)
+  stoppedAt     DateTime? @map("stopped_at") @db.Timestamp(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  agent   Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  logs    AgentLog[]
+  metrics AgentMetric[]
+  rooms   AgentRoom[]
+
+  @@index([agentId], map: "idx_agent_instances_agent_id")
+  @@index([status], map: "idx_agent_instances_status")
+  @@map("agent_instances")
+}
+
+model AgentLog {
+  id         String   @id @db.Text
+  agentId    String   @map("agent_id") @db.Text
+  instanceId String   @map("instance_id") @db.Text
+  logLevel   String?  @default("info") @map("log_level") @db.Text
+  message    String   @db.Text
+  timestamp  DateTime @default(now()) @db.Timestamp(6)
+
+  agent    Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  instance AgentInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([agentId], map: "idx_agent_logs_agent_id")
+  @@index([instanceId], map: "idx_agent_logs_instance_id")
+  @@index([timestamp], map: "idx_agent_logs_timestamp")
+  @@map("agent_logs")
+}
+
+model AgentMetric {
+  id         String   @id @db.Text
+  agentId    String   @map("agent_id") @db.Text
+  instanceId String   @map("instance_id") @db.Text
+  metricName String   @map("metric_name") @db.Text
+  metricValue Float?  @map("metric_value")
+  unit       String?  @db.Text
+  timestamp  DateTime @default(now()) @db.Timestamp(6)
+
+  agent    Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  instance AgentInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([agentId], map: "idx_agent_metrics_agent_id")
+  @@index([instanceId], map: "idx_agent_metrics_instance_id")
+  @@index([timestamp], map: "idx_agent_metrics_timestamp")
+  @@map("agent_metrics")
+}
+
+model AgentRoom {
+  id         String    @id @db.Text
+  agentId    String    @map("agent_id") @db.Text
+  instanceId String?   @map("instance_id") @db.Text
+  roomName   String    @map("room_name") @db.Text
+  joinedAt   DateTime? @map("joined_at") @db.Timestamp(6)
+  leftAt     DateTime? @map("left_at") @db.Timestamp(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  agent    Agent          @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  instance AgentInstance? @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([agentId], map: "idx_agent_rooms_agent_id")
+  @@index([roomName], map: "idx_agent_rooms_room_name")
+  @@map("agent_rooms")
+}
+
+model ApiKey {
+  id         String    @id @db.Text
+  userId     String?   @map("user_id") @db.Text
+  projectId  String?   @map("project_id") @db.Text
+  name       String    @db.Text
+  key        String    @unique @db.Text
+  secret     String?   @db.Text
+  secretHash String    @map("secret_hash") @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+  isActive   Boolean   @default(true) @map("is_active")
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([key], map: "idx_api_keys_key")
+  @@index([userId], map: "idx_api_keys_user_id")
+  @@index([projectId], map: "idx_api_keys_project_id")
+  @@map("api_keys")
+}
+
+model Room {
+  id              String   @id @db.Text
+  roomName        String   @unique @map("room_name") @db.Text
+  roomSid         String?  @map("room_sid") @db.Text
+  maxParticipants Int?     @map("max_participants")
+  emptyTimeout    Int?     @map("empty_timeout")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+  isActive        Boolean  @default(true) @map("is_active")
+
+  @@index([roomName], map: "idx_rooms_name")
+  @@map("rooms")
+}
+
+model IngressRecord {
+  id        String   @id @db.Text
+  name      String   @db.Text
+  inputType String   @map("input_type") @db.Text
+  roomName  String?  @map("room_name") @db.Text
+  streamKey String?  @map("stream_key") @db.Text
+  url       String?  @db.Text
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([roomName], map: "idx_ingress_room")
+  @@map("ingress")
+}
+
+model EgressRecord {
+  id         String   @id @db.Text
+  name       String   @db.Text
+  egressType String   @map("egress_type") @db.Text
+  roomName   String?  @map("room_name") @db.Text
+  outputType String?  @map("output_type") @db.Text
+  outputUrl  String?  @map("output_url") @db.Text
+  isActive   Boolean  @default(false) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([roomName], map: "idx_egress_room")
+  @@map("egress")
+}
+
+model Sip {
+  id          String   @id @db.Text
+  name        String   @db.Text
+  trunkId     String?  @map("trunk_id") @db.Text
+  phoneNumber String?  @map("phone_number") @db.Text
+  roomName    String?  @map("room_name") @db.Text
+  isEnabled   Boolean  @default(true) @map("is_enabled")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([roomName], map: "idx_sip_room")
+  @@map("sip")
+}
+
+model Config {
+  id          String    @id @db.Text
+  userId      String?   @map("user_id") @db.Text
+  projectId   String?   @map("project_id") @db.Text
+  serviceName String    @map("service_name") @db.Text
+  configKey   String    @map("config_key") @db.Text
+  configValue String?   @map("config_value") @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@unique([serviceName, configKey], map: "configs_service_name_config_key_key")
+  @@index([serviceName], map: "idx_configs_service")
+  @@index([userId], map: "idx_configs_user_id")
+  @@index([projectId], map: "idx_configs_project_id")
+  @@map("configs")
+}
+
+model Metric {
+  id          String   @id @db.Text
+  metricName  String   @map("metric_name") @db.Text
+  metricValue Float?   @map("metric_value")
+  labels      String?  @db.Text
+  timestamp   DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([metricName], map: "idx_metrics_name")
+  @@index([timestamp], map: "idx_metrics_timestamp")
+  @@map("metrics")
+}
+
+model Transcript {
+  id                  String    @id @db.Text
+  sessionId           String    @map("session_id") @db.Text
+  roomName            String    @map("room_name") @db.Text
+  participantIdentity String?   @map("participant_identity") @db.Text
+  text                String    @db.Text
+  timestamp           DateTime  @default(now()) @db.Timestamp(6)
+  language            String?   @db.Text
+  isFinal             Boolean   @default(true) @map("is_final")
+  projectId           String?   @map("project_id") @db.Text
+
+  session LiveSession @relation(fields: [sessionId], references: [sid], onDelete: Cascade)
+  project Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId], map: "idx_transcripts_session_id")
+  @@index([timestamp], map: "idx_transcripts_timestamp")
+  @@map("transcripts")
+}
+
+model AuditLog {
+  id         String    @id @db.Text
+  timestamp  DateTime  @default(now()) @db.Timestamp(6)
+  action     String    @db.Text
+  actorId    String?   @map("actor_id") @db.Text
+  actorEmail String?   @map("actor_email") @db.Text
+  targetType String?   @map("target_type") @db.Text
+  targetId   String?   @map("target_id") @db.Text
+  metadata   String?   @db.Text
+  ipAddress  String?   @map("ip_address") @db.Text
+  projectId  String?   @map("project_id") @db.Text
+
+  actor   User?    @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([timestamp], map: "idx_audit_logs_timestamp")
+  @@index([action], map: "idx_audit_logs_action")
+  @@index([projectId], map: "idx_audit_logs_project_id")
+  @@map("audit_logs")
+}
+
+model WebhookEvent {
+  id               String    @id @db.VarChar(36)
+  projectId        String?   @map("project_id") @db.Text
+  eventType        String    @map("event_type") @db.VarChar(100)
+  payload          String    @db.Text
+  processed        Boolean   @default(false)
+  deliveryAttempts Int       @default(0) @map("delivery_attempts")
+  lastError        String?   @map("last_error") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project    Project?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  deliveries WebhookDelivery[]
+
+  @@index([createdAt], map: "idx_webhook_events_created_at")
+  @@index([processed], map: "idx_webhook_events_processed")
+  @@index([eventType], map: "idx_webhook_events_event_type")
+  @@index([projectId], map: "idx_webhook_events_project_id")
+  @@map("webhook_events")
+}
+
+model WebhookDelivery {
+  id           String    @id @db.VarChar(36)
+  eventId      String    @map("event_id") @db.VarChar(36)
+  webhookId    String    @map("webhook_id") @db.VarChar(36)
+  url          String    @db.Text
+  statusCode   Int?      @map("status_code")
+  responseBody String?   @map("response_body") @db.Text
+  errorMessage String?   @map("error_message") @db.Text
+  attemptedAt  DateTime  @default(now()) @map("attempted_at") @db.Timestamp(6)
+  success      Boolean   @default(false)
+
+  event WebhookEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId], map: "idx_webhook_deliveries_event_id")
+  @@index([attemptedAt], map: "idx_webhook_deliveries_attempted_at")
+  @@index([success], map: "idx_webhook_deliveries_success")
+  @@map("webhook_deliveries")
+}
+
+model ErrorLog {
+  id         String    @id @db.VarChar(36)
+  errorType  String    @map("error_type") @db.VarChar(100)
+  message    String    @db.Text
+  isResolved Boolean   @default(false) @map("is_resolved")
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([createdAt], map: "idx_error_logs_created_at")
+  @@index([isResolved], map: "idx_error_logs_is_resolved")
+  @@index([errorType], map: "idx_error_logs_error_type")
+  @@map("error_logs")
+}
+
+model CallLog {
+  id                  String    @id @db.Text
+  callId              String    @map("call_id") @db.Text
+  fromNumber          String?   @map("from_number") @db.Text
+  toNumber            String    @map("to_number") @db.Text
+  direction           String    @db.Text
+  startedAt           DateTime  @map("started_at") @db.Timestamp(6)
+  endedAt             DateTime? @map("ended_at") @db.Timestamp(6)
+  durationSeconds     Int?      @default(0) @map("duration_seconds")
+  status              String    @default("ringing") @db.Text
+  trunkId             String?   @map("trunk_id") @db.Text
+  roomName            String?   @map("room_name") @db.Text
+  participantIdentity String?   @map("participant_identity") @db.Text
+  projectId           String?   @map("project_id") @db.Text
+  metadata            String?   @db.Text
+  createdAt           DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([callId], map: "idx_call_logs_call_id")
+  @@index([direction], map: "idx_call_logs_direction")
+  @@index([startedAt], map: "idx_call_logs_started_at")
+  @@index([trunkId], map: "idx_call_logs_trunk_id")
+  @@index([projectId], map: "idx_call_logs_project_id")
+  @@map("call_logs")
+}

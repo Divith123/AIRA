@@ -14,7 +14,11 @@ import { useClickOutside } from "../../../hooks/useClickOutside";
 import { CreateAgentModal } from "../../../components/modals/CreateAgentModal";
 import { cn } from "../../../lib/utils";
 
-export default function AgentsPage() {
+interface AgentsPageProps {
+  projectId?: string;
+}
+
+export default function AgentsPage({ projectId }: AgentsPageProps) {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
@@ -51,7 +55,10 @@ export default function AgentsPage() {
       setProjects(projectsData);
 
       const savedProjectId = localStorage.getItem("projectId");
-      const project = projectsData.find((p: Project) => p.id === savedProjectId) || projectsData[0];
+      const project =
+        projectsData.find((p: Project) => p.id === projectId || p.short_id === projectId) ||
+        projectsData.find((p: Project) => p.id === savedProjectId) ||
+        projectsData[0];
 
       if (project) {
         setCurrentProject(project);
@@ -75,7 +82,7 @@ export default function AgentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, projectId]);
 
   useEffect(() => {
     loadData();

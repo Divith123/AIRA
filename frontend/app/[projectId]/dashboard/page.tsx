@@ -1,8 +1,10 @@
-"use client";
-
-import React from "react";
 import DashboardPage from "../../(pages)/dashboard/page";
+import {
+  resolveProjectRouteParams,
+  type ProjectRouteProps,
+} from "../params";
 
-export default function ProjectDashboardPage(props: any) {
-  return <DashboardPage />;
+export default async function ProjectDashboardPage(props: ProjectRouteProps) {
+  const { projectId } = await resolveProjectRouteParams(props);
+  return <DashboardPage projectId={projectId} />;
 }

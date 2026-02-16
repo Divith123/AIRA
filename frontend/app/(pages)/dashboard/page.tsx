@@ -12,7 +12,11 @@ import { getAccessToken, getProjects, getAnalyticsDashboard, getAnalyticsTimeser
 import { AnalyticsCard } from "../../../components/AnalyticsCard";
 import { StatsLineChart, PlatformDonutChart } from "../../../components/Charts";
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  projectId?: string;
+}
+
+export default function DashboardPage({ projectId }: DashboardPageProps) {
   const router = useRouter();
   // Analytics State
   const [projects, setProjects] = useState<Project[]>([]);
@@ -31,37 +35,44 @@ export default function DashboardPage() {
     }
 
     try {
-      // 1. Verify Auth First (Handled by global AuthContext now)
+      const projectsData = await getProjects();
+      setProjects(projectsData);
 
-      // 2. Load Content
-      const [dashData, timeseriesData, projectsData] = await Promise.allSettled([
-        getAnalyticsDashboard(timeRange),
-        getAnalyticsTimeseries(timeRange),
-        getProjects(),
-      ]);
+      const savedProjectId = localStorage.getItem("projectId");
+      const resolvedProject =
+        projectsData.find((p) => p.id === projectId || p.short_id === projectId) ||
+        projectsData.find((p) => p.id === savedProjectId) ||
+        projectsData[0] ||
+        null;
 
-      if (dashData.status === 'fulfilled') setDashboardData(dashData.value);
-      if (timeseriesData.status === 'fulfilled') setTimeseries(timeseriesData.value);
-      if (projectsData.status === 'fulfilled') {
-        setProjects(projectsData.value);
-        if (projectsData.value.length > 0 && !currentProject) {
-          setCurrentProject(projectsData.value[0]);
-          localStorage.setItem("projectId", projectsData.value[0].id);
-          localStorage.setItem("projectName", projectsData.value[0].name);
-        }
+      if (resolvedProject) {
+        setCurrentProject(resolvedProject);
+        localStorage.setItem("projectId", resolvedProject.id);
+        localStorage.setItem("projectName", resolvedProject.name);
       }
 
+      const scopedProjectId = resolvedProject?.id;
+      const [dashData, timeseriesData] = await Promise.allSettled([
+        getAnalyticsDashboard(timeRange, scopedProjectId),
+        getAnalyticsTimeseries(timeRange, scopedProjectId),
+      ]);
+
+      if (dashData.status === "fulfilled") setDashboardData(dashData.value);
+      if (timeseriesData.status === "fulfilled") setTimeseries(timeseriesData.value);
     } catch (e) {
 
       router.push("/login");
     } finally {
       setLoading(false);
     }
-  }, [router, currentProject, timeRange]);
+  }, [router, projectId, timeRange]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const routeProjectId = currentProject?.short_id || currentProject?.id || projectId || "";
+  const basePath = routeProjectId ? `/${routeProjectId}` : "";
 
   const links = [
     { name: "Rooms", path: "/sessions" },
@@ -294,7 +305,7 @@ export default function DashboardPage() {
               {links.map((link) => (
                 <Link
                   key={link.name}
-                  href={link.path}
+                  href={`${basePath}${link.path}`}
                   className="flex items-center justify-between p-3 rounded-lg bg-surface border border-border hover:bg-surface-hover transition-all text-left group"
                 >
                   <span className="text-foreground text-sm group-hover:text-primary transition-colors">{link.name}</span>

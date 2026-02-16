@@ -1,8 +1,10 @@
-"use client";
-
-import React from "react";
 import AgentsPage from "../../(pages)/agents/page";
+import {
+  resolveProjectRouteParams,
+  type ProjectRouteProps,
+} from "../params";
 
-export default function ProjectAgentsPage(props: any) {
-  return <AgentsPage />;
+export default async function ProjectAgentsPage(props: ProjectRouteProps) {
+  const { projectId } = await resolveProjectRouteParams(props);
+  return <AgentsPage projectId={projectId} />;
 }

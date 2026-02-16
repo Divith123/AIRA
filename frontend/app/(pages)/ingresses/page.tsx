@@ -7,7 +7,7 @@ import Header from "../../components/Header";
 import { Card } from "../../../components/ui/Card";
 import { Upload, RefreshCw, Globe, Video, Radio, Link2 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
-import { getAccessToken, getIngresses, createIngress, deleteIngress, User, Ingress, apiFetch } from "../../../lib/api";
+import { getAccessToken, getIngresses, createIngress, createUrlIngress, deleteIngress, Ingress } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import Loader from "../../../components/ui/Loader";
 import { Select } from "../../../components/ui/Select";
@@ -26,11 +26,16 @@ interface IngressFormData {
   videoEnabled: boolean;
 }
 
-export default function IngressesPage() {
+interface IngressesPageProps {
+  projectId?: string;
+}
+
+export default function IngressesPage({ projectId }: IngressesPageProps) {
   const router = useRouter();
   const [ingresses, setIngresses] = useState<Ingress[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [projectName, setProjectName] = useState("Default Project");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState<IngressFormData>({
@@ -47,7 +52,7 @@ export default function IngressesPage() {
   const loadData = async () => {
     if (!getAccessToken()) { router.push("/login"); return; }
     try {
-      const [i] = await Promise.all([getIngresses()]);
+      const [i] = await Promise.all([getIngresses(projectId)]);
       setIngresses(i);
     } catch (e) {
 
@@ -59,7 +64,12 @@ export default function IngressesPage() {
 
   useEffect(() => {
     loadData();
-  }, [router]);
+    // Load project name from localStorage
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("projectName");
+      if (stored) setProjectName(stored);
+    }
+  }, [router, projectId]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -79,21 +89,18 @@ export default function IngressesPage() {
           return;
         }
 
-        await apiFetch('/api/livekit/ingress/url', {
-          method: 'POST',
-          body: JSON.stringify({
-            name: formData.name,
-            url: formData.url,
-            room_name: formData.roomName,
-            participant_identity: formData.participantIdentity || `url-${Date.now()}`,
-            participant_name: formData.participantName || formData.name,
-            audio_enabled: formData.audioEnabled,
-            video_enabled: formData.videoEnabled,
-          }),
-        });
+        await createUrlIngress({
+          name: formData.name,
+          url: formData.url,
+          room_name: formData.roomName,
+          participant_identity: formData.participantIdentity || `url-${Date.now()}`,
+          participant_name: formData.participantName || formData.name,
+          audio_enabled: formData.audioEnabled,
+          video_enabled: formData.videoEnabled,
+        }, projectId);
         handleRefresh();
       } else {
-        const newIngress = await createIngress(formData.name, formData.type as "rtmp" | "whip");
+        const newIngress = await createIngress(formData.name, formData.type as "rtmp" | "whip", projectId);
         setIngresses([newIngress, ...ingresses]);
       }
 
@@ -119,7 +126,7 @@ export default function IngressesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete ingress?")) return;
     try {
-      await deleteIngress(id);
+      await deleteIngress(id, projectId);
       setIngresses(ingresses.filter(i => i.ingress_id !== id));
     } catch (e) {
 
@@ -145,7 +152,7 @@ export default function IngressesPage() {
 
   return (
     <>
-      <Header projectName="AIRA" pageName="Ingress" showTimeRange={false}
+      <Header projectName={projectName} pageName="Ingress" showTimeRange={false}
         actionButton={
           <div className="flex gap-2">
             <Button size="sm" variant="ghost" onClick={handleRefresh} disabled={refreshing}>

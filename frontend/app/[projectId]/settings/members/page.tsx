@@ -1,8 +1,10 @@
-"use client";
-
-import React from "react";
 import MembersPage from "../../../(pages)/settings/members/page";
+import {
+  resolveProjectRouteParams,
+  type ProjectRouteProps,
+} from "../../params";
 
-export default function ProjectMembersPage(props: any) {
-  return <MembersPage />;
+export default async function ProjectMembersPage(props: ProjectRouteProps) {
+  const { projectId } = await resolveProjectRouteParams(props);
+  return <MembersPage projectId={projectId} />;
 }

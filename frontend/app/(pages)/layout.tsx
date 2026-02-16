@@ -3,6 +3,7 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { DashboardLayout } from "../../components/layouts/DashboardLayout";
+import { ErrorBoundary } from "../../components/ErrorBoundary";
 
 export default function PagesLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -15,8 +16,10 @@ export default function PagesLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <DashboardLayout>
-      {children}
-    </DashboardLayout>
+    <ErrorBoundary>
+      <DashboardLayout>
+        {children}
+      </DashboardLayout>
+    </ErrorBoundary>
   );
 }

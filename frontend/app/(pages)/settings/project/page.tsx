@@ -8,7 +8,11 @@ import { Card } from "../../../../components/ui/Card";
 import { Save, Trash2, Info } from "lucide-react";
 import { getProject, getProjects, updateProject } from "../../../../lib/api";
 
-export default function ProjectSettingsPage() {
+interface ProjectSettingsPageProps {
+  projectId?: string;
+}
+
+export default function ProjectSettingsPage({ projectId }: ProjectSettingsPageProps) {
   const [apiProjectId, setApiProjectId] = useState<string | null>(null);
   const [displayProjectId, setDisplayProjectId] = useState<string>("");
   const [name, setName] = useState("Default Project");
@@ -43,7 +47,7 @@ export default function ProjectSettingsPage() {
   };
 
   useEffect(() => {
-    // Resolve project id from localStorage (may be short_id or full id)
+    // Resolve project id from route/localStorage (may be short_id or full id)
     (async () => {
       try {
         const stored = typeof window !== "undefined" ? localStorage.getItem("projectId") : null;
@@ -54,7 +58,15 @@ export default function ProjectSettingsPage() {
         let resolvedApiId: string | undefined;
         let displayId = "";
 
-        if (stored) {
+        if (projectId) {
+          const routeMatch = projects.find((x) => x.short_id === projectId || x.id === projectId);
+          if (routeMatch) {
+            resolvedApiId = routeMatch.id;
+            displayId = routeMatch.short_id || routeMatch.id;
+          }
+        }
+
+        if (!resolvedApiId && stored) {
           const match = projects.find((x) => x.short_id === stored || x.id === stored);
           if (match) {
             resolvedApiId = match.id;
@@ -70,6 +82,9 @@ export default function ProjectSettingsPage() {
         if (resolvedApiId) {
           setApiProjectId(resolvedApiId);
           setDisplayProjectId(displayId);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("projectId", resolvedApiId);
+          }
           try {
             const p = await getProject(resolvedApiId);
             setName(p.name || "");
@@ -82,7 +97,7 @@ export default function ProjectSettingsPage() {
         console.warn("Failed to resolve project", e);
       }
     })();
-  }, []);
+  }, [projectId]);
 
   return (
     <>

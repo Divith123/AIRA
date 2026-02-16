@@ -8,7 +8,11 @@ import { Modal } from "../../../../components/ui/Modal";
 import { Search, Copy, Trash2, Check } from "lucide-react";
 import { getApiKeys, createApiKey, deleteApiKey, getMe, ApiKey } from "../../../../lib/api";
 
-export default function ApiKeysPage() {
+interface ApiKeysPageProps {
+  projectId?: string;
+}
+
+export default function ApiKeysPage({ projectId }: ApiKeysPageProps) {
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"own" | "other">("own");
@@ -23,12 +27,12 @@ export default function ApiKeysPage() {
   React.useEffect(() => {
     loadKeys();
     getMe().then(setMe).catch(console.error);
-  }, []);
+  }, [projectId]);
 
   const loadKeys = async () => {
     try {
       setIsLoading(true);
-      const data = await getApiKeys();
+      const data = await getApiKeys(projectId);
       setKeys(data);
     } catch (error) {
       console.error("Failed to load keys:", error);
@@ -51,7 +55,7 @@ export default function ApiKeysPage() {
     if (!keyDescription.trim()) return;
 
     try {
-      const resp = await createApiKey(keyDescription);
+      const resp = await createApiKey(keyDescription, projectId);
       // Backend returns ApiKey with secret only on create
       setGeneratedKey((resp as any).secret || (resp as any).secret_key || "Key created hidden");
       await loadKeys();
@@ -71,7 +75,7 @@ export default function ApiKeysPage() {
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this API key?")) {
       try {
-        await deleteApiKey(id);
+        await deleteApiKey(id, projectId);
         await loadKeys();
       } catch (error) {
         alert("Failed to delete API key");
