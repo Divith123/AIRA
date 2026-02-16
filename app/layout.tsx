@@ -8,6 +8,11 @@ export const metadata: Metadata = {
   title: "AIRA",
   description:
     "AIRA is a self-hosted LiveKit management dashboard built with Next.js and Tailwind CSS. It provides an interface for managing projects, monitoring real-time metrics, and configuring settings.",
+  icons: {
+    icon: "/aira-logo.png",
+    shortcut: "/aira-logo.png",
+    apple: "/aira-logo.png",
+  },
 };
 
 export default function RootLayout({
