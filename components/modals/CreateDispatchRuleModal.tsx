@@ -56,7 +56,7 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
         <Modal isOpen={isOpen} onClose={onClose} title="Create a new dispatch rule" width="max-w-3xl">
             <div className="flex flex-col h-full">
                 
-                <div className="flex items-center gap-6 border-b border-white/5 px-1 mb-6">
+                <div className="flex items-center gap-6 border-b border-border/40 px-1 mb-6">
                     <button
                         onClick={() => setActiveTab("details")}
                         className={`text-xs font-semibold uppercase tracking-wider py-3 border-b-2 transition-colors ${activeTab === "details" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
@@ -78,12 +78,12 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                         
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rule name</label>
-                            <input
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50 transition-colors placeholder:text-muted-foreground/50"
-                                placeholder="Rule name"
-                            />
+                                <input
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full bg-surface border border-border/60 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 transition-colors placeholder:text-muted-foreground/50"
+                                    placeholder="Rule name"
+                                />
                         </div>
 
                         
@@ -95,7 +95,7 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                                 <select
                                     value={formData.type}
                                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50 appearance-none cursor-pointer"
+                                    className="w-full bg-surface border border-border/60 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 appearance-none cursor-pointer"
                                 >
                                     <option value="Individual">Individual</option>
                                     <option value="Direct">Direct</option>
@@ -105,7 +105,7 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                                     <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                                 </div>
                             </div>
-                            <div className="text-xs text-muted-foreground bg-white/5 p-3 rounded-lg border border-white/5">
+                            <div className="text-xs text-muted-foreground bg-muted/5 p-3 rounded-lg border border-border/40">
                                 Creates a new room for each caller.
                             </div>
                         </div>
@@ -116,7 +116,7 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                             <input
                                 value={formData.roomPrefix}
                                 onChange={(e) => setFormData({ ...formData, roomPrefix: e.target.value })}
-                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50"
+                                className="w-full bg-surface border border-border/60 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50"
                                 placeholder="Room prefix"
                             />
                         </div>
@@ -139,11 +139,11 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                                 </Button>
                             ) : (
                                 <div className="relative">
-                                    <select
-                                        value={formData.agentId}
-                                        onChange={(e) => setFormData({ ...formData, agentId: e.target.value })}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:border-primary/50 appearance-none cursor-pointer"
-                                    >
+                                        <select
+                                            value={formData.agentId}
+                                            onChange={(e) => setFormData({ ...formData, agentId: e.target.value })}
+                                            className="w-full bg-surface border border-border/60 rounded-lg px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50 appearance-none cursor-pointer"
+                                        >
                                         <option value="">Select Agent</option>
                                         {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                                     </select>
@@ -159,29 +159,29 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                             <label className="text-sm font-semibold text-foreground">Inbound routing</label>
                             <p className="text-xs text-muted-foreground">Configure origination by setting up how inbound calls will be dispatched to LiveKit rooms.</p>
 
-                            <div className="bg-black/40 border border-white/10 rounded-lg overflow-hidden">
-                                <div className="flex border-b border-white/10">
-                                    <button className="flex-1 py-2 text-xs font-medium text-muted-foreground hover:bg-white/5 border-r border-white/10">Phone numbers</button>
+                            <div className="bg-surface border border-border/60 rounded-lg overflow-hidden">
+                                <div className="flex border-b border-border/40">
+                                    <button className="flex-1 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/5 border-r border-border/40">Phone numbers</button>
                                     <button className="flex-1 py-2 text-xs font-medium text-primary bg-primary/10 border-b-2 border-primary">Trunks</button>
                                 </div>
                                 <div className="p-3">
                                     <div className="relative mb-2">
                                         <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
                                         <input
-                                            className="w-full bg-black/20 border border-white/10 rounded px-9 py-1.5 text-sm focus:outline-none focus:border-white/20"
+                                            className="w-full bg-transparent border border-border/60 rounded px-9 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/20 focus:border-primary/50"
                                             placeholder="Search by trunk name"
                                         />
                                     </div>
                                     <div className="max-h-32 overflow-y-auto space-y-1">
                                         {trunks.length === 0 && <div className="text-xs text-muted-foreground text-center py-2">No trunks found</div>}
                                         {trunks.map(t => (
-                                            <label key={t.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded cursor-pointer group">
+                                            <label key={t.id} className="flex items-center gap-3 p-2 hover:bg-muted/5 rounded cursor-pointer group">
                                                 <input
                                                     type="radio"
                                                     name="trunk"
                                                     checked={formData.inboundTrunkId === t.id}
                                                     onChange={() => setFormData({ ...formData, inboundTrunkId: t.id })}
-                                                    className="w-4 h-4 rounded border-white/20 bg-transparent text-primary focus:ring-primary focus:ring-offset-0"
+                                                    className="w-4 h-4 rounded border-border/40 bg-transparent text-primary focus:ring-primary focus:ring-offset-0"
                                                 />
                                                 <div className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{t.name || t.id}</div>
                                                 <div className="ml-auto text-xs text-muted-foreground font-mono">{t.sip_uri || "Unknown URI"}</div>
@@ -191,13 +191,13 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded border border-white/5">Learn more in the docs</span>
+                                <span className="text-xs text-muted-foreground bg-muted/5 px-2 py-1 rounded border border-border/40">Learn more in the docs</span>
                             </div>
                         </div>
 
                     </div>
                 ) : (
-                    <div className="h-full bg-black/40 border border-white/10 rounded-lg p-4">
+                    <div className="h-full bg-surface border border-border/60 rounded-lg p-4">
                         <pre className="text-xs font-mono text-muted-foreground">
                             {JSON.stringify({
                                 name: formData.name,
@@ -212,7 +212,7 @@ export function CreateDispatchRuleModal({ isOpen, onClose, onSubmit, agents, tru
                 )}
             </div>
 
-            <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-white/5">
+            <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-border/40">
                 <Button variant="ghost" onClick={onClose}>Cancel</Button>
                 <Button onClick={handleSubmit} isLoading={loading}>Create</Button>
             </div>
