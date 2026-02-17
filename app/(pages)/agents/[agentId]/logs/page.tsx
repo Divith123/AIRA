@@ -33,6 +33,8 @@ const logLevelStyles = {
   debug: { bg: "bg-slate-500/10", text: "text-slate-600", border: "border-slate-200", icon: FileText },
 };
 
+import { Skeleton } from "../../../../../components/ui/Skeleton";
+
 export default function AgentLogsPage() {
   const params = useParams();
   const agentId = Array.isArray(params.agentId) ? params.agentId[0] : params.agentId;
@@ -161,9 +163,13 @@ export default function AgentLogsPage() {
 
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground space-y-4">
-              <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-              <span className="text-[13px] font-medium tracking-tight">Streaming logs...</span>
+            <div className="p-4 space-y-3">
+              {[...Array(10)].map((_, i) => (
+                <div key={i} className="flex gap-4">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 flex-1" />
+                </div>
+              ))}
             </div>
           ) : filteredLogs.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-3 opacity-60">

@@ -105,6 +105,8 @@ interface ParticipantPermissions {
   canUpdateMetadata: boolean;
 }
 
+import { PageSkeleton } from "../../../../components/ui/PageSkeleton";
+
 export default function RoomDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -289,11 +291,7 @@ export default function RoomDetailPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   const projectName = typeof window !== "undefined" ? localStorage.getItem("projectName") || "AIRA" : "AIRA";

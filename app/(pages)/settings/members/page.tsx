@@ -15,6 +15,8 @@ const roleDescriptions: Record<string, string> = {
   Admin: "Allow full access and control, including billing and user management.",
 };
 
+import { Skeleton } from "../../../../components/ui/Skeleton";
+
 interface TeamMembersPageProps {
   projectId?: string;
 }
@@ -95,8 +97,16 @@ export default function TeamMembersPage({ projectId: _projectId }: TeamMembersPa
 
             <div className="space-y-3">
             {isLoading ? (
-              <div className="py-20 flex justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="p-4 border border-border/40 rounded-lg flex items-center gap-4">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-48" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : members.length === 0 ? (
               <div className="text-center py-12">

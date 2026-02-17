@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+import { Skeleton } from "@/components/ui/Skeleton";
+
 export default function Home() {
   const router = useRouter();
 
@@ -18,7 +20,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
+      <Skeleton className="h-12 w-12 rounded-full" />
     </div>
   );
 }

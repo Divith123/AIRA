@@ -8,6 +8,7 @@ import { Button } from "../../../components/ui/Button";
 import { getAccessToken, getProjects, getAIConfig, updateAIConfig, Project, AIConfig } from "../../../lib/api";
 import { Settings, Database, Cloud, Cpu, Save, RefreshCw } from "lucide-react";
 import { cn } from "../../../lib/utils";
+import { PageSkeleton } from "../../../components/ui/PageSkeleton";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -82,11 +83,7 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (

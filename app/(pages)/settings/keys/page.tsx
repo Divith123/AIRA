@@ -9,6 +9,8 @@ import { Card } from "../../../../components/ui/Card";
 import { Search, Copy, Trash2, Check, Info, ExternalLink } from "lucide-react";
 import { getApiKeys, createApiKey, deleteApiKey, getMe, ApiKey } from "../../../../lib/api";
 
+import { Skeleton } from "../../../../components/ui/Skeleton";
+
 interface ApiKeysPageProps {
   projectId?: string;
 }
@@ -156,11 +158,22 @@ export default function ApiKeysPage({ projectId }: ApiKeysPageProps) {
             </thead>
             <tbody className="divide-y divide-border/40">
               {isLoading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <div className="flex justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
-                  </td>
-                </tr>
+                [...Array(5)].map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-5 w-32" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-4 w-48" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <Skeleton className="h-4 w-24" />
+                    </td>
+                    <td className="w-10 px-6 py-4">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                    </td>
+                  </tr>
+                ))
               ) : filteredKeys.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center">

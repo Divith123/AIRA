@@ -13,6 +13,7 @@ import { AgentStatCard, AgentSessionsChart } from "../../../components/AgentsCha
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { CreateAgentModal } from "../../../components/modals/CreateAgentModal";
 import { DeployAgentModal } from "../../../components/modals/DeployAgentModal";
+import { PageSkeleton } from "../../../components/ui/PageSkeleton";
 import { cn } from "../../../lib/utils";
 
 interface AgentsPageProps {
@@ -169,11 +170,7 @@ export default function AgentsPage({ projectId }: AgentsPageProps) {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   // Calculate stats from state

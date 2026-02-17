@@ -22,6 +22,8 @@ import {
   Project,
 } from "../../../../lib/api";
 
+import { PageSkeleton } from "../../../../components/ui/PageSkeleton";
+
 interface DispatchRulesPageProps {
   projectId?: string;
 }
@@ -114,11 +116,7 @@ export default function DispatchRulesPage({ projectId }: DispatchRulesPageProps)
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary"></div>
-      </div>
-    );
+    return <PageSkeleton />;
   }
 
   return (
