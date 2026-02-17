@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { createProject, getMe, logout, getProjects } from "../../lib/api";
 import { useAuth } from "../../contexts/AuthContext";
+import { AiraLoader } from "../../components/ui/AiraLoader";
 import { useRouter } from "next/navigation";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -62,6 +63,7 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
   const [requireProjectCreation, setRequireProjectCreation] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(initialUser ?? auth?.user ?? null);
 
   // Determine which sections contain active routes
@@ -297,6 +299,7 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
 
   return (
     <>
+      {isLoggingOut && <AiraLoader />}
       <aside className="h-screen flex flex-col bg-background sticky top-0 font-sans text-foreground transition-all duration-300 ease-in-out w-64">
         {/* Header */}
         <div className="px-6 py-8 flex items-center">
@@ -514,8 +517,17 @@ export default function LiveKitStyleSidebar({ user: initialUser }: SidebarProps)
                     <div className="text-xs text-muted-foreground">{user?.email ?? "-"}</div>
                   </div>
                 </div>
-                <button onClick={async () => { await logout(); router.push('/login'); }} className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border hover:bg-muted transition-colors bg-background">
-                  Sign out
+                <button 
+                  onClick={async () => { 
+                    setIsLoggingOut(true);
+                    await logout(); 
+                    router.push('/login'); 
+                  }} 
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-lg border hover:bg-muted transition-colors bg-background"
+                >
+                  <span className="sr-only">Sign out</span>
+                  <span className="text-xs">Sign out</span>
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>

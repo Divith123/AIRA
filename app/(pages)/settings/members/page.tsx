@@ -6,6 +6,7 @@ import Header from "../../../components/Header";
 import { Button } from "../../../../components/ui/Button";
 import { Modal } from "../../../../components/ui/Modal";
 import { Card } from "../../../../components/ui/Card";
+import { AiraLoader } from "../../../../components/ui/AiraLoader";
 import { UserPlus, Trash2, Info, ExternalLink } from "lucide-react";
 import { getTeamMembers, createTeamMember, deleteTeamMember, getMe, TeamMember } from "../../../../lib/api";
 
@@ -76,6 +77,7 @@ export default function TeamMembersPage({ projectId: _projectId }: TeamMembersPa
 
   return (
     <>
+      {isLoading && <AiraLoader />}
       <Header
         projectName="Default Project"
         pageName="Members"

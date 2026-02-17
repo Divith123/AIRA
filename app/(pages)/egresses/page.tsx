@@ -21,6 +21,7 @@ import {
 } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import Loader from "../../../components/ui/Loader";
+import { AiraLoader } from "../../../components/ui/AiraLoader";
 import { Plus, Download as DownloadIcon, Radio, StopCircle } from "lucide-react";
 
 type EgressType = "room_composite" | "web" | "track" | "image";
@@ -189,6 +190,7 @@ export default function EgressesPage({ projectId }: EgressesPageProps) {
 
   return (
     <>
+      {(loading || refreshing || isStarting) && <AiraLoader />}
       <Header projectName={projectName} pageName="Egress" showTimeRange={false}
         actionButton={
           <div className="flex gap-2">

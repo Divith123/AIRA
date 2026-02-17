@@ -22,6 +22,7 @@ import {
   Project,
 } from "../../../../lib/api";
 
+import { AiraLoader } from "../../../../components/ui/AiraLoader";
 import { PageSkeleton } from "../../../../components/ui/PageSkeleton";
 
 interface DispatchRulesPageProps {
@@ -115,29 +116,30 @@ export default function DispatchRulesPage({ projectId }: DispatchRulesPageProps)
     }
   };
 
-  if (loading) {
-    return <PageSkeleton />;
-  }
-
   return (
     <>
-      <Header
-        projectName={projectName}
-        sectionName="Telephony"
-        pageName="Dispatch rules"
-        showTimeRange={false}
-        actionButton={
-          <Button
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-white font-bold text-[11px] uppercase tracking-widest px-6 h-9"
-            onClick={() => setIsModalOpen(true)}
-          >
-            <Plus className="w-3.5 h-3.5 mr-2 stroke-3" />
-            Create new dispatch rule
-          </Button>
-        }
-      />
-      <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto animate-fade-in">
+      {loading && <AiraLoader />}
+      {loading ? (
+        <PageSkeleton />
+      ) : (
+        <>
+          <Header
+            projectName={projectName}
+            sectionName="Telephony"
+            pageName="Dispatch rules"
+            showTimeRange={false}
+            actionButton={
+              <Button
+                size="sm"
+                className="bg-primary hover:bg-primary/90 text-white font-bold text-[11px] uppercase tracking-widest px-6 h-9"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <Plus className="w-3.5 h-3.5 mr-2 stroke-3" />
+                Create new dispatch rule
+              </Button>
+            }
+          />
+          <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto animate-fade-in">
         {/* Top Stats Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm relative">
@@ -250,6 +252,8 @@ export default function DispatchRulesPage({ projectId }: DispatchRulesPageProps)
           trunks={trunks}
         />
       </div>
+      </>
+      )}
     </>
   );
 }

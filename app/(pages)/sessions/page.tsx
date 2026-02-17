@@ -6,6 +6,7 @@ import Header from "../../components/Header";
 import { Card } from "../../../components/ui/Card";
 import { RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Phone, Users as UsersIcon, Bot, ChevronDown } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
+import { AiraLoader } from "../../../components/ui/AiraLoader";
 import { getAccessToken, getSessions, getSessionStats, getProjects, Project, SessionStats, SessionsListResponse } from "../../../lib/api";
 import { cn } from "../../../lib/utils";
 
@@ -47,6 +48,8 @@ export default function SessionsPage({ projectId }: SessionsPageProps) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  const loading = loadingSessions || loadingStats || loadingProjects;
 
   // Only show a message/block if user has zero projects
   const showNoProjects = !loadingProjects && projects.length === 0;
@@ -190,6 +193,7 @@ export default function SessionsPage({ projectId }: SessionsPageProps) {
 
   return (
     <>
+      {(loading || loadingSessions) && <AiraLoader />}
       <Header
         projectName={currentProject?.name || "Project"}
         pageName="Sessions"

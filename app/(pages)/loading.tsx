@@ -1,5 +1,5 @@
-import { PageSkeleton } from "@/components/ui/PageSkeleton";
+import { AiraLoader } from "@/components/ui/AiraLoader";
 
 export default function Loading() {
-  return <PageSkeleton />;
+  return <AiraLoader />;
 }

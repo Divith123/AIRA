@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 // DashboardLayout removed
 import Header from "../../components/Header";
 import { Button } from "../../../components/ui/Button";
+import { AiraLoader } from "../../../components/ui/AiraLoader";
 import {
   ChevronLeft,
   ChevronRight,
@@ -19,14 +20,17 @@ interface SandboxPageProps {
 
 export default function SandboxPage({ projectId: _projectId }: SandboxPageProps) {
   const [projectName, setProjectName] = useState("AIRA");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const name = localStorage.getItem("projectName") || "AIRA";
     setProjectName(name);
+    setLoading(false);
   }, []);
 
   return (
     <>
+      {loading && <AiraLoader />}
       <Header
         projectName={projectName}
         pageName="Sandbox"

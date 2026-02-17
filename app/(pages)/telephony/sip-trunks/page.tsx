@@ -9,6 +9,7 @@ import { Card } from "../../../../components/ui/Card";
 import { Button } from "../../../../components/ui/Button";
 import { Modal } from "../../../../components/ui/Modal";
 import { Input } from "../../../../components/ui/Input";
+import { AiraLoader } from "../../../../components/ui/AiraLoader";
 import { cn } from "../../../../lib/utils";
 import { getAccessToken, getSipTrunks, createSipTrunk, deleteSipTrunk, SipTrunk } from "../../../../lib/api";
 
@@ -21,6 +22,7 @@ export default function SipTrunksPage({ projectId }: SipTrunksPageProps) {
   const [projectName, setProjectName] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [trunks, setTrunks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ name: "", numbers: "", sip_server: "", username: "", password: "" });
 
   useEffect(() => {
@@ -39,6 +41,8 @@ export default function SipTrunksPage({ projectId }: SipTrunksPageProps) {
         } else {
           console.error("Failed to load trunks", e);
         }
+      } finally {
+        setLoading(false);
       }
     };
     loadData();
@@ -79,6 +83,7 @@ export default function SipTrunksPage({ projectId }: SipTrunksPageProps) {
 
   return (
     <>
+      {loading && <AiraLoader />}
       <Header
         projectName={projectName}
         sectionName="Telephony"

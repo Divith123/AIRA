@@ -10,6 +10,7 @@ import { Button } from "../../../components/ui/Button";
 import { getAccessToken, getIngresses, createIngress, createUrlIngress, deleteIngress, Ingress } from "../../../lib/api";
 import { Modal } from "../../../components/ui/Modal";
 import Loader from "../../../components/ui/Loader";
+import { AiraLoader } from "../../../components/ui/AiraLoader";
 import { Select } from "../../../components/ui/Select";
 import { Plus, Trash2, Upload as UploadIcon } from "lucide-react";
 
@@ -152,6 +153,7 @@ export default function IngressesPage({ projectId }: IngressesPageProps) {
 
   return (
     <>
+      {(loading || refreshing || creating) && <AiraLoader />}
       <Header projectName={projectName} pageName="Ingress" showTimeRange={false}
         actionButton={
           <div className="flex gap-2">

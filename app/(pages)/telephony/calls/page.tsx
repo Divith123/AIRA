@@ -9,6 +9,7 @@ import { getAccessToken, getSipTrunks, SipTrunk, getCallLogs, createOutboundCall
 import { Phone, PhoneOutgoing, PhoneIncoming, Clock, Plus, RefreshCw, PhoneOff, Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { Button } from "../../../../components/ui/Button";
 import { Modal } from "../../../../components/ui/Modal";
+import { AiraLoader } from "../../../../components/ui/AiraLoader";
 import { cn } from "../../../../lib/utils";
 
 interface CallsPageProps {
@@ -139,6 +140,7 @@ export default function CallsPage({ projectId }: CallsPageProps) {
 
   return (
     <>
+      {(loading || calling || refreshing) && <AiraLoader />}
       <Header
         projectName={projectName}
         sectionName="Telephony"

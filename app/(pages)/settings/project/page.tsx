@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import Header from "../../../components/Header";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";
+import { AiraLoader } from "../../../../components/ui/AiraLoader";
 import { Save, Trash2, Info, Database, ExternalLink, Settings, Shield, Zap, BarChart, AlertTriangle, ChevronRight } from "lucide-react";
 import { getProject, getProjects, updateProject } from "../../../../lib/api";
 
@@ -18,6 +19,7 @@ export default function ProjectSettingsPage({ projectId }: ProjectSettingsPagePr
   const [name, setName] = useState("Default Project");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [autoCreateName, setAutoCreateName] = useState(true);
   const [adminCanCreateCodec, setAdminCanCreateCodec] = useState(true);
   const [allowPendingUnverified, setAllowPendingUnverified] = useState(false);
@@ -95,12 +97,15 @@ export default function ProjectSettingsPage({ projectId }: ProjectSettingsPagePr
         }
       } catch (e) {
         console.warn("Failed to resolve project", e);
+      } finally {
+        setLoading(false);
       }
     })();
   }, [projectId]);
 
   return (
     <>
+      {(loading || saving) && <AiraLoader />}
       <Header
         projectName={name || "Project"}
         pageName="Project Settings"

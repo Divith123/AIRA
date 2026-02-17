@@ -6,6 +6,7 @@ import Header from "../../../components/Header";
 import { Button } from "../../../../components/ui/Button";
 import { Modal } from "../../../../components/ui/Modal";
 import { Card } from "../../../../components/ui/Card";
+import { AiraLoader } from "../../../../components/ui/AiraLoader";
 import { Search, Copy, Trash2, Check, Info, ExternalLink } from "lucide-react";
 import { getApiKeys, createApiKey, deleteApiKey, getMe, ApiKey } from "../../../../lib/api";
 
@@ -88,6 +89,7 @@ export default function ApiKeysPage({ projectId }: ApiKeysPageProps) {
 
   return (
     <>
+      {isLoading && <AiraLoader />}
       <Header
         projectName="Default Project"
         pageName="Keys"

@@ -6,6 +6,8 @@ import { Card } from "../../../components/ui/Card";
 import { Button } from "../../../components/ui/Button";
 import { login, getAccessToken, getMe } from "../../../lib/api";
 
+import { AiraLoader } from "../../../components/ui/AiraLoader";
+
 function Logo() {
   return (
     <div className="h-10 w-auto flex items-center justify-center mb-4">
@@ -50,20 +52,19 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+      {loading && <AiraLoader />}
       <div className="absolute inset-0 bg-background z-0" />
       <div className="absolute top-[-10%] right-[-5%] w-[400px] h-[400px] bg-primary/20 rounded-full blur-[100px]" />
       <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-purple-500/20 rounded-full blur-[100px]" />
 
       <Card variant="glass" className="w-full max-w-sm p-6 relative z-10 border-border bg-card/50">
         <div className="flex flex-col items-center text-center mb-6">
-          <Logo />
           <h1 className="text-2xl font-bold mt-4 text-foreground">Sign in</h1>
           <p className="text-muted-foreground text-sm mt-1">Admin Dashboard</p>
         </div>

@@ -11,6 +11,7 @@ import { ChevronRightIcon } from "../../components/icons";
 import { getAccessToken, getProjects, getAnalyticsDashboard, getAnalyticsTimeseries, Project, DashboardData, AnalyticsDataPoint } from "../../../lib/api";
 import { AnalyticsCard } from "../../../components/AnalyticsCard";
 import { StatsLineChart, PlatformDonutChart } from "../../../components/Charts";
+import { AiraLoader } from "../../../components/ui/AiraLoader";
 
 interface DashboardPageProps {
   projectId?: string;
@@ -104,6 +105,7 @@ export default function DashboardPage({ projectId }: DashboardPageProps) {
 
   return (
     <>
+      {loading && <AiraLoader />}
       <Header
         projectName={currentProject?.name || "Project"}
         pageName="Overview"

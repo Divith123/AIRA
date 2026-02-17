@@ -14,6 +14,7 @@ import { useClickOutside } from "../../../hooks/useClickOutside";
 import { CreateAgentModal } from "../../../components/modals/CreateAgentModal";
 import { DeployAgentModal } from "../../../components/modals/DeployAgentModal";
 import { PageSkeleton } from "../../../components/ui/PageSkeleton";
+import { AiraLoader } from "../../../components/ui/AiraLoader";
 import { cn } from "../../../lib/utils";
 
 interface AgentsPageProps {
