@@ -19,6 +19,10 @@ export function mapAgentRow(row: {
   display_name: string;
   image: string;
   entrypoint: string | null;
+  instructions: string | null;
+  welcome_message: string | null;
+  voice: string | null;
+  model: string | null;
   env_vars: string | null;
   livekit_permissions: string | null;
   default_room_behavior: string | null;
@@ -35,6 +39,10 @@ export function mapAgentRow(row: {
     display_name: row.display_name,
     image: row.image,
     entrypoint: row.entrypoint,
+    instructions: row.instructions,
+    welcome_message: row.welcome_message,
+    voice: row.voice,
+    model: row.model,
     env_vars: safeParseJsonObject<Record<string, string>>(row.env_vars),
     livekit_permissions: safeParseJsonObject<Record<string, boolean>>(row.livekit_permissions),
     default_room_behavior: row.default_room_behavior || "auto",

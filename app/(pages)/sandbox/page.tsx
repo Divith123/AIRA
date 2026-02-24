@@ -37,7 +37,7 @@ export default function SandboxPage({ projectId: _projectId }: SandboxPageProps)
         showTimeRange={false}
       />
 
-      <div className="p-8 space-y-12">
+      <div className="p-8 space-y-12" style={{ fontFamily: "'Outfit', sans-serif" }}>
         {/* Get started section */}
         <section>
           <div className="flex items-center justify-between mb-6">
@@ -86,8 +86,8 @@ export default function SandboxPage({ projectId: _projectId }: SandboxPageProps)
             {/* Card 2: Token server */}
             <div className="group cursor-pointer rounded-xl border border-border/60 bg-white dark:bg-surface/30 hover:shadow-lg dark:hover:border-primary/40 transition-all overflow-hidden shadow-sm">
               <div className="h-44 bg-slate-300/80 dark:bg-black/40 flex items-center justify-center relative">
-                <div className="absolute inset-0 opacity-10 dark:opacity-10" 
-                  style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '16px 16px' }} 
+                <div className="absolute inset-0 opacity-10 dark:opacity-10"
+                  style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '16px 16px' }}
                 />
                 <div className="w-12 h-12 rounded-lg bg-muted/5 dark:bg-muted/20 border border-border/40 flex items-center justify-center relative z-10 shadow-sm backdrop-blur-sm">
                   <Database className="w-6 h-6 text-white" />

@@ -1,140 +1,157 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
 import { Card } from "../../../components/ui/Card";
-import { RefreshCw, Search, Filter, ChevronLeft, ChevronRight, Phone, Users as UsersIcon, Bot, ChevronDown } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { AiraLoader } from "../../../components/ui/AiraLoader";
-import { getAccessToken, getSessions, getSessionStats, getProjects, Project, SessionStats, SessionsListResponse } from "../../../lib/api";
+import {
+  Search,
+  X,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Users,
+  Clock3,
+  Radio,
+  Activity,
+} from "lucide-react";
+import {
+  getAccessToken,
+  getSessions,
+  getSessionStats,
+  getProjects,
+  getAnalyticsDashboard,
+  type Project,
+  type SessionStats,
+  type SessionsListResponse,
+  type DashboardData,
+} from "../../../lib/api";
 import { cn } from "../../../lib/utils";
+
+interface SessionsPageProps {
+  projectId?: string;
+}
+
+const PAGE_SIZE = 10;
 
 const formatDuration = (seconds: number) => {
   if (seconds < 60) return `${seconds}s`;
   const mins = Math.floor(seconds / 60);
-  if (mins < 60) return `${mins} mins`;
+  if (mins < 60) return `${mins}m`;
   const hours = Math.floor(mins / 60);
   return `${hours}h ${mins % 60}m`;
 };
 
 const formatDate = (dateStr: string) => {
   if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit'
-  });
+  const d = new Date(dateStr);
+  return (
+    d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+    " " +
+    d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
+  );
 };
-
-
-
-interface SessionsPageProps {
-  projectId?: string;
-}
 
 export default function SessionsPage({ projectId }: SessionsPageProps) {
   const router = useRouter();
   const [sessionsData, setSessionsData] = useState<SessionsListResponse | null>(null);
   const [stats, setStats] = useState<SessionStats | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [loadingProjects, setLoadingProjects] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [autoRefreshInterval, setAutoRefreshInterval] = useState(0);
+  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const loading = loadingSessions || loadingStats || loadingProjects;
-
-  // Only show a message/block if user has zero projects
+  const loading = loadingProjects || loadingSessions || loadingStats;
   const showNoProjects = !loadingProjects && projects.length === 0;
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 500);
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Load sessions
-  const loadSessions = useCallback(async () => {
-    setLoadingSessions(true);
-    setError(null);
-    try {
-      const token = getAccessToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-
-      const scopedProjectId = currentProject?.id;
-      const sessionsRes = await getSessions(
-        page,
-        10,
-        statusFilter === "all" ? undefined : statusFilter,
-        debouncedSearch,
-        scopedProjectId,
-      );
-      setSessionsData(sessionsRes);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load sessions");
-    } finally {
-      setLoadingSessions(false);
-    }
-  }, [page, statusFilter, debouncedSearch, router, currentProject]);
-
-  // Load stats
-  const loadStats = useCallback(async () => {
-    setLoadingStats(true);
-    try {
-      const token = getAccessToken();
-      if (!token) {
-        router.push("/login");
-        return;
-      }
-      const statsRes = await getSessionStats("24h", currentProject?.id);
-      setStats(statsRes);
-    } catch (err) {
-      setStats(null);
-      setError(err instanceof Error ? `Failed to load stats: ${err.message}` : "Failed to load stats");
-    } finally {
-      setLoadingStats(false);
-    }
-  }, [router]);
-
-  // Load projects (only if not already loaded)
   const loadProjects = useCallback(async () => {
     setLoadingProjects(true);
     try {
-      const token = getAccessToken();
-      if (!token) {
+      if (!getAccessToken()) {
         router.push("/login");
         return;
       }
       const projectsRes = await getProjects();
       setProjects(projectsRes);
-      // Set current project from localStorage or first project
       const savedProjectId = localStorage.getItem("projectId");
       const project =
-        projectsRes.find((p: Project) => p.id === projectId || p.short_id === projectId) ||
-        projectsRes.find((p: Project) => p.id === savedProjectId) ||
+        projectsRes.find((p) => p.id === projectId || p.short_id === projectId) ||
+        projectsRes.find((p) => p.id === savedProjectId || p.short_id === savedProjectId) ||
         projectsRes[0];
       if (project) {
         setCurrentProject(project);
         localStorage.setItem("projectId", project.id);
         localStorage.setItem("projectName", project.name);
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load projects");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load projects");
     } finally {
       setLoadingProjects(false);
     }
-  }, [router, projectId]);
+  }, [projectId, router]);
 
-  // Initial load
+  const loadSessions = useCallback(async () => {
+    setLoadingSessions(true);
+    setError(null);
+    try {
+      if (!getAccessToken()) {
+        router.push("/login");
+        return;
+      }
+      const sessionsRes = await getSessions(
+        page,
+        PAGE_SIZE,
+        statusFilter === "all" ? undefined : statusFilter,
+        debouncedSearch,
+        currentProject?.id,
+      );
+      setSessionsData(sessionsRes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load sessions");
+    } finally {
+      setLoadingSessions(false);
+    }
+  }, [currentProject?.id, debouncedSearch, page, router, statusFilter]);
+
+  const loadStats = useCallback(async () => {
+    setLoadingStats(true);
+    try {
+      if (!getAccessToken()) {
+        router.push("/login");
+        return;
+      }
+      const [statsRes, dashRes] = await Promise.all([
+        getSessionStats("24h", currentProject?.id),
+        getAnalyticsDashboard("24h", currentProject?.id),
+      ]);
+      setStats(statsRes);
+      setDashboardData(dashRes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load stats");
+      setStats(null);
+      setDashboardData(null);
+    } finally {
+      setLoadingStats(false);
+    }
+  }, [currentProject?.id, router]);
+
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
@@ -144,247 +161,296 @@ export default function SessionsPage({ projectId }: SessionsPageProps) {
       loadSessions();
       loadStats();
     }
-  }, [loadingProjects, loadSessions, loadStats]);
+  }, [loadSessions, loadStats, loadingProjects]);
 
-  // Refresh handler
+  useEffect(() => {
+    if (autoRefreshRef.current) {
+      clearInterval(autoRefreshRef.current);
+      autoRefreshRef.current = null;
+    }
+    if (autoRefreshInterval > 0) {
+      autoRefreshRef.current = setInterval(() => {
+        loadSessions();
+        loadStats();
+      }, autoRefreshInterval);
+    }
+    return () => {
+      if (autoRefreshRef.current) clearInterval(autoRefreshRef.current);
+    };
+  }, [autoRefreshInterval, loadSessions, loadStats]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await Promise.all([loadSessions(), loadStats()]);
     setRefreshing(false);
   };
 
-  // Skeleton components
-  const SkeletonCard = () => (
-    <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm">
-      <div className="animate-pulse">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="h-4 bg-muted rounded w-32"></div>
-          <div className="w-3.5 h-3.5 rounded-full bg-muted"></div>
-        </div>
-        <div className="h-10 bg-muted rounded w-16"></div>
-      </div>
-    </Card>
-  );
-
-  const SkeletonTableRow = () => (
-    <tr className="animate-pulse">
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-24"></div></td>
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-20"></div></td>
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-28"></div></td>
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-28"></div></td>
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-16"></div></td>
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-12"></div></td>
-      <td className="px-6 py-4"><div className="h-4 bg-muted rounded w-16"></div></td>
-      <td className="px-6 py-4 text-right"><div className="h-6 bg-muted rounded w-16 ml-auto"></div></td>
-    </tr>
-  );
-
-  if (showNoProjects) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Header projectName="-" pageName="Sessions" showTimeRange={false} onRefresh={async () => {}} />
-        <div className="mt-16 p-8 rounded-xl border border-dashed border-primary/30 bg-background/80 text-center max-w-lg">
-          <h2 className="text-2xl font-bold mb-2">No Projects Found</h2>
-          <p className="text-muted-foreground mb-4">You must create a project before you can view sessions. Use the sidebar to create your first project.</p>
-        </div>
-      </div>
-    );
-  }
+  const activeSessions = sessionsData?.data.filter((s) => s.status === "active").length || 0;
+  const avgDurationMinutes = dashboardData ? Math.round(dashboardData.rooms.avg_duration / 60) : 0;
+  const totalParticipants = stats?.unique_participants || 0;
+  const totalSessions = stats?.total_rooms || 0;
 
   return (
     <>
-      {(loading || loadingSessions) && <AiraLoader />}
+      {loading && <AiraLoader />}
       <Header
         projectName={currentProject?.name || "Project"}
         pageName="Sessions"
-        showTimeRange={true}
+        showTimeRange
         onRefresh={handleRefresh}
+        onAutoRefreshChange={setAutoRefreshInterval}
       />
+
       {error && (
-        <div className="mx-6 md:mx-8 mt-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
-          Error: {error}
+        <div className="mx-6 md:mx-8 mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-500">
+          {error}
         </div>
       )}
-      <div className="p-6 md:p-8 space-y-8 max-w-[1600px] mx-auto">
-        {/* Stats Cards */}
-        {(loadingStats || loadingProjects) ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <SkeletonCard />
-            <SkeletonCard />
+
+      {showNoProjects ? (
+        <div className="p-6 md:p-8">
+          <div className="mx-auto max-w-3xl rounded-xl border border-dashed border-border bg-surface p-10 text-center">
+            <h2 className="text-2xl font-semibold text-foreground">No Projects Found</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Create a project first to view and monitor sessions.
+            </p>
           </div>
-        ) : error && !stats ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm flex items-center justify-center min-h-[120px]">
-              <span className="text-red-500 text-sm font-medium">{error}</span>
+        </div>
+      ) : (
+        <div className="mx-auto max-w-[1600px] animate-fade-in space-y-6 p-6 md:p-8" style={{ fontFamily: "'Outfit', sans-serif" }}>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <Card className="group relative overflow-hidden border-border/60 bg-background/50 p-5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+              <div className="absolute right-0 top-0 h-20 w-20 translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 transition-transform duration-500 group-hover:scale-150" />
+              <div className="relative">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Radio className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total Sessions</span>
+                </div>
+                <div className="text-3xl font-semibold tracking-tight text-foreground">{totalSessions}</div>
+              </div>
             </Card>
-            <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm flex items-center justify-center min-h-[120px]">
-              <span className="text-red-500 text-sm font-medium">{error}</span>
+
+            <Card className="group relative overflow-hidden border-border/60 bg-background/50 p-5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+              <div className="absolute right-0 top-0 h-20 w-20 translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/5 transition-transform duration-500 group-hover:scale-150" />
+              <div className="relative">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+                    <Activity className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Live Now</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-3xl font-semibold tracking-tight text-foreground">{activeSessions}</div>
+                  {activeSessions > 0 && <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />}
+                </div>
+              </div>
+            </Card>
+
+            <Card className="group relative overflow-hidden border-border/60 bg-background/50 p-5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+              <div className="absolute right-0 top-0 h-20 w-20 translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/5 transition-transform duration-500 group-hover:scale-150" />
+              <div className="relative">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
+                    <Users className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Participants</span>
+                </div>
+                <div className="text-3xl font-semibold tracking-tight text-foreground">{totalParticipants}</div>
+              </div>
+            </Card>
+
+            <Card className="group relative overflow-hidden border-border/60 bg-background/50 p-5 shadow-sm backdrop-blur-sm transition-all duration-300 hover:shadow-md">
+              <div className="absolute right-0 top-0 h-20 w-20 translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-500/5 transition-transform duration-500 group-hover:scale-150" />
+              <div className="relative">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-500/10">
+                    <Clock3 className="h-4 w-4 text-violet-500" />
+                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Avg Duration</span>
+                </div>
+                <div className="text-3xl font-semibold tracking-tight text-foreground">{avgDurationMinutes}m</div>
+              </div>
             </Card>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm">
-              <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
-                Unique Participants
-                <button className="opacity-40 hover:opacity-100 transition-opacity">
-                  <div className="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center text-[10px]">i</div>
-                </button>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold tracking-tight">Session Logs</h2>
+                <span className="rounded-full bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  {sessionsData?.total || 0}
+                </span>
+                {refreshing && (
+                  <div className="flex items-center gap-1.5 text-xs text-primary animate-pulse">
+                    <div className="h-1.5 w-1.5 animate-ping rounded-full bg-primary" />
+                    Refreshing...
+                  </div>
+                )}
               </div>
-              <div className="text-[42px] font-light text-foreground tracking-tight">
-                {typeof stats?.unique_participants === 'number' ? stats.unique_participants : '-'}
-              </div>
-            </Card>
-            <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm">
-              <div className="flex items-center gap-2 text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-4">
-                Total Rooms
-                <button className="opacity-40 hover:opacity-100 transition-opacity">
-                  <div className="w-3.5 h-3.5 rounded-full border border-current flex items-center justify-center text-[10px]">i</div>
-                </button>
-              </div>
-              <div className="text-[42px] font-light text-foreground tracking-tight">
-                {typeof stats?.total_rooms === 'number' ? stats.total_rooms : '-'}
-              </div>
-            </Card>
-          </div>
-        )}
-        {/* Sessions Section */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Sessions</h2>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="h-9 px-3 text-xs font-medium border-border/60 bg-background hover:bg-muted text-muted-foreground">
-                <Filter className="w-3.5 h-3.5 mr-2" />
-                Filters
-              </Button>
-              <div className="relative group">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                <input
-                  type="text"
-                  placeholder="Search"
-                  className="h-9 w-64 pl-9 pr-4 bg-background border border-border/60 rounded-lg text-xs focus:ring-1 focus:ring-primary/20 focus:border-primary/50 outline-none transition-all placeholder:text-muted-foreground/50"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-background px-2.5">
+                  <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    className="h-9 bg-transparent text-xs text-foreground outline-none"
+                  >
+                    <option value="all">All status</option>
+                    <option value="active">Active</option>
+                    <option value="ended">Ended</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
+
+                <div className="group relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Search sessions..."
+                    className="h-9 w-64 rounded-lg border border-border/60 bg-background pl-9 pr-8 text-xs outline-none transition-all placeholder:text-muted-foreground/50 focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="bg-background border border-border/60 rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[13px] border-collapse">
-                <thead className="bg-muted/30 text-muted-foreground text-[10px] font-bold uppercase tracking-widest border-b border-border/50">
-                  <tr>
-                    <th className="px-6 py-3 font-bold">Session ID</th>
-                    <th className="px-6 py-3 font-bold">Room Name</th>
-                    <th className="px-6 py-3 font-bold flex items-center gap-1.5">
-                      Started At
-                      <ChevronDown className="w-3 h-3 text-muted-foreground" />
-                    </th>
-                    <th className="px-6 py-3 font-bold">Ended At</th>
-                    <th className="px-6 py-3 font-bold">Duration</th>
-                    <th className="px-6 py-3 font-bold">Participants</th>
-                    <th className="px-6 py-3 font-bold">Features</th>
-                    <th className="px-6 py-3 font-bold text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {loadingSessions ? (
-                    Array.from({ length: 5 }).map((_, i) => <SkeletonTableRow key={i} />)
-                  ) : (
-                    <>
-                      {sessionsData?.data.map((session) => (
+
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-background shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left text-[13px]">
+                  <thead className="border-b border-border/50 bg-muted/30 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <tr>
+                      <th className="px-5 py-3 font-bold">Session ID</th>
+                      <th className="px-5 py-3 font-bold">Room</th>
+                      <th className="px-5 py-3 font-bold">Started</th>
+                      <th className="px-5 py-3 font-bold">Ended</th>
+                      <th className="px-5 py-3 font-bold">Duration</th>
+                      <th className="px-5 py-3 font-bold">Participants</th>
+                      <th className="px-5 py-3 font-bold">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {loadingSessions ? (
+                      Array.from({ length: 5 }).map((_, i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="px-5 py-3.5"><div className="h-3.5 w-28 rounded bg-muted" /></td>
+                          <td className="px-5 py-3.5"><div className="h-3.5 w-24 rounded bg-muted" /></td>
+                          <td className="px-5 py-3.5"><div className="h-3.5 w-28 rounded bg-muted" /></td>
+                          <td className="px-5 py-3.5"><div className="h-3.5 w-28 rounded bg-muted" /></td>
+                          <td className="px-5 py-3.5"><div className="h-3.5 w-14 rounded bg-muted" /></td>
+                          <td className="px-5 py-3.5"><div className="h-3.5 w-12 rounded bg-muted" /></td>
+                          <td className="px-5 py-3.5"><div className="h-5 w-16 rounded-full bg-muted" /></td>
+                        </tr>
+                      ))
+                    ) : sessionsData?.data.length ? (
+                      sessionsData.data.map((session) => (
                         <tr
                           key={session.sid}
-                          className="group hover:bg-muted/30 transition-colors cursor-pointer"
-                          onClick={() => session.status === 'active' && router.push(`/sessions/${encodeURIComponent(session.room_name)}`)}
+                          className="group cursor-pointer transition-colors hover:bg-muted/20"
+                          onClick={() =>
+                            session.status === "active"
+                              ? router.push(`/sessions/${encodeURIComponent(session.room_name)}`)
+                              : undefined
+                          }
                         >
-                          <td className="px-6 py-4 font-mono text-[11px] text-muted-foreground opacity-70">
-                            {session.sid}
-                          </td>
-                          <td className="px-6 py-4 font-medium text-foreground">
-                            {session.room_name}
-                          </td>
-                          <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
-                            {formatDate(session.start_time)}
-                          </td>
-                          <td className="px-6 py-4 text-muted-foreground whitespace-nowrap">
+                          <td className="px-5 py-3.5 font-mono text-[11px] text-muted-foreground/80">{session.sid}</td>
+                          <td className="px-5 py-3.5 text-foreground font-medium">{session.room_name}</td>
+                          <td className="px-5 py-3.5 text-[12px] text-muted-foreground">{formatDate(session.start_time)}</td>
+                          <td className="px-5 py-3.5 text-[12px] text-muted-foreground">
                             {session.end_time ? formatDate(session.end_time) : "-"}
                           </td>
-                          <td className="px-6 py-4 text-foreground">
-                            {session.status === 'active' ? (
-                              <span className="flex items-center gap-2 text-primary font-medium">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                          <td className="px-5 py-3.5 text-foreground">
+                            {session.status === "active" ? (
+                              <span className="flex items-center gap-1.5 text-emerald-500">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                                 Live
                               </span>
                             ) : (
                               formatDuration(session.duration)
                             )}
                           </td>
-                          <td className="px-6 py-4 text-foreground">
-                            {session.total_participants}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex gap-1.5 flex-wrap">
-                              {session.features?.map(f => (
-                                <span key={f} className="inline-flex items-center px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground">
-                                  {f}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className={cn(
-                              "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border",
-                              session.status === 'active' 
-                                ? "bg-primary/10 text-primary border-primary/20" 
-                                : "bg-muted text-muted-foreground border-border/50"
-                            )}>
+                          <td className="px-5 py-3.5 text-foreground">{session.total_participants}</td>
+                          <td className="px-5 py-3.5">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+                                session.status === "active"
+                                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                  : "border-border/50 bg-muted text-muted-foreground",
+                              )}
+                            >
                               {session.status.toUpperCase()}
                             </span>
                           </td>
                         </tr>
-                      ))}
-                      {(!sessionsData?.data || sessionsData.data.length === 0) && (
-                        <tr>
-                          <td colSpan={8} className="px-6 py-24 text-center">
-                            <div className="flex flex-col items-center gap-2">
-                              <span className="text-sm text-muted-foreground font-medium">No results.</span>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-20 text-center">
+                          <div className="mx-auto flex max-w-[280px] flex-col items-center gap-2.5">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted/50">
+                              <Radio className="h-4 w-4 text-muted-foreground/50" />
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {sessionsData && sessionsData.total > 10 && !loadingSessions && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/10">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="text-xs font-medium"
-                >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Previous
-                </Button>
-                <span className="text-xs text-muted-foreground font-medium">Page {page}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={!sessionsData || sessionsData.data.length < 10}
-                  className="text-xs font-medium"
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
+                            <p className="text-sm font-medium text-muted-foreground">No sessions found</p>
+                            <p className="text-xs text-muted-foreground/60">
+                              {searchQuery || statusFilter !== "all"
+                                ? "Try adjusting search or filters"
+                                : "Sessions will appear here as rooms are created"}
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            )}
+
+              {sessionsData && sessionsData.total > PAGE_SIZE && !loadingSessions && (
+                <div className="flex items-center justify-between border-t border-border/50 bg-muted/10 px-5 py-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="text-xs"
+                  >
+                    <ChevronLeft className="mr-1.5 h-4 w-4" />
+                    Previous
+                  </Button>
+                  <span className="text-xs text-muted-foreground">Page {page}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage((p) => p + 1)}
+                    disabled={sessionsData.data.length < PAGE_SIZE}
+                    className="text-xs"
+                  >
+                    Next
+                    <ChevronRight className="ml-1.5 h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
