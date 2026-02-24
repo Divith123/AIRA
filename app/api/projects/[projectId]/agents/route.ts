@@ -37,6 +37,10 @@ function normalizeAgentPayload(payload: Record<string, unknown>) {
       payload.entrypoint !== undefined && payload.entrypoint !== null
         ? String(payload.entrypoint)
         : null,
+    instructions: payload.instructions ? String(payload.instructions) : null,
+    welcome_message: payload.welcome_message ? String(payload.welcome_message) : null,
+    voice: payload.voice ? String(payload.voice) : null,
+    model: payload.model ? String(payload.model) : null,
     env_vars: JSON.stringify(envVars),
     livekit_permissions: JSON.stringify(
       payload.livekit_permissions && typeof payload.livekit_permissions === "object"
@@ -73,6 +77,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
     display_name: string;
     image: string;
     entrypoint: string | null;
+    instructions: string | null;
+    welcome_message: string | null;
+    voice: string | null;
+    model: string | null;
     env_vars: string | null;
     livekit_permissions: string | null;
     default_room_behavior: string | null;
@@ -90,6 +98,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
         a.display_name,
         a.image,
         a.entrypoint,
+        a.instructions,
+        a.welcome_message,
+        a.voice,
+        a.model,
         a.env_vars,
         a.livekit_permissions,
         a.default_room_behavior,
@@ -121,6 +133,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     display_name: string;
     image: string;
     entrypoint: string | null;
+    instructions: string | null;
+    welcome_message: string | null;
+    voice: string | null;
+    model: string | null;
     env_vars: string | null;
     livekit_permissions: string | null;
     default_room_behavior: string | null;
@@ -137,6 +153,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         display_name,
         image,
         entrypoint,
+        instructions,
+        welcome_message,
+        voice,
+        model,
         env_vars,
         livekit_permissions,
         default_room_behavior,
@@ -148,7 +168,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         updated_at
       )
       VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW()
       )
       RETURNING
         id,
@@ -156,6 +176,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         display_name,
         image,
         entrypoint,
+        instructions,
+        welcome_message,
+        voice,
+        model,
         env_vars,
         livekit_permissions,
         default_room_behavior,
@@ -167,10 +191,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
     `,
     [
       randomUUID(),
-      `agent_${randomUUID().replace(/-/g, "")}`,
+      `agent_${randomUUID().replace(/-/g, "").slice(0, 8)}`,
       normalized.display_name,
       normalized.image,
       normalized.entrypoint,
+      normalized.instructions,
+      normalized.welcome_message,
+      normalized.voice,
+      normalized.model,
       normalized.env_vars,
       normalized.livekit_permissions,
       normalized.default_room_behavior,

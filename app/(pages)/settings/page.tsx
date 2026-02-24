@@ -96,7 +96,7 @@ export default function SettingsPage() {
         onRefresh={loadProjects}
       />
 
-      <div className="p-6 md:p-8 space-y-8 max-w-[1200px] mx-auto animate-fade-in">
+      <div className="p-6 md:p-8 space-y-8 max-w-[1200px] mx-auto animate-fade-in" style={{ fontFamily: "'Outfit', sans-serif" }}>
         {/* AI Configuration Section */}
         <Card className="p-6 border-border/60 shadow-sm bg-background/50 backdrop-blur-sm">
           <div className="flex items-center gap-3 mb-6">

@@ -1,4 +1,4 @@
-import AgentsPage from "../../(pages)/agents/page";
+import { redirect } from "next/navigation";
 import {
   resolveProjectRouteParams,
   type ProjectRouteProps,
@@ -6,5 +6,5 @@ import {
 
 export default async function ProjectAgentsPage(props: ProjectRouteProps) {
   const { projectId } = await resolveProjectRouteParams(props);
-  return <AgentsPage projectId={projectId} />;
+  redirect(`/${projectId}/dashboard`);
 }

@@ -1,28 +1,8 @@
 import { query } from "./db";
 import { resolveOwnedProjectId } from "./project";
+import { parseRangeToHours, parseSessionFeatures, extractProjectIdFromRoom } from "../utils";
 
-export function parseRangeToHours(range: string | null): number {
-  switch ((range || "24h").toLowerCase()) {
-    case "1h":
-      return 1;
-    case "3h":
-      return 3;
-    case "6h":
-      return 6;
-    case "12h":
-      return 12;
-    case "24h":
-      return 24;
-    case "7d":
-      return 24 * 7;
-    case "30d":
-      return 24 * 30;
-    case "60d":
-      return 24 * 60;
-    default:
-      return 24;
-  }
-}
+export { parseRangeToHours, parseSessionFeatures, extractProjectIdFromRoom };
 
 export async function resolveSessionScopeProjectIds(
   userId: string,
@@ -41,16 +21,16 @@ export async function resolveSessionScopeProjectIds(
   return projects.rows.map((row) => row.id);
 }
 
-export function parseSessionFeatures(features: string | null): string[] {
-  if (!features) return [];
+export async function getCountryFromIp(ip: string): Promise<string | null> {
+  if (!ip || ip === "::1" || ip === "127.0.0.1") return "Local";
   try {
-    const parsed = JSON.parse(features) as unknown;
-    if (Array.isArray(parsed)) {
-      return parsed.map((item) => String(item));
+    const res = await fetch(`http://ip-api.com/json/${ip}?fields=status,country,countryCode`);
+    const data = await res.json();
+    if (data.status === "success") {
+      return data.country || data.countryCode || null;
     }
-  } catch {
-    // Ignore invalid serialized features.
+  } catch (e) {
+    console.error("Error fetching country from IP:", e);
   }
-  return [];
+  return null;
 }
-

@@ -17,6 +17,7 @@ import {
   projectPrefix,
   scopeName,
   unscopeName,
+  encodeScopeMetadata,
 } from "@/lib/server/scopes";
 import { hashPassword } from "@/lib/server/auth";
 import { syncAllResources } from "@/lib/server/resource-sync";
@@ -439,37 +440,46 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    await syncAllResources();
+    // Call LiveKit SDK directly for real-time ingress data
+    try {
+      const allIngresses = await livekit.ingress.listIngress({});
+      const prefix = projectPrefix(projectId);
 
-    const rows = await query<{
-      id: string;
-      name: string;
-      input_type: string;
-      room_name: string | null;
-      stream_key: string | null;
-      url: string | null;
-    }>(
-      `
-        SELECT id, name, input_type, room_name, stream_key, url
-        FROM ingress
-        WHERE project_id = $1
-        ORDER BY created_at DESC
-      `,
-      [projectId],
-    );
+      // Filter to project scope
+      const scoped = allIngresses.filter(
+        (i) =>
+          i.roomName.startsWith(prefix) ||
+          i.participantIdentity.startsWith(prefix),
+      );
 
-    return NextResponse.json(
-      rows.rows.map((row) => ({
-        ingress_id: row.id,
-        name: row.name,
-        input_type: Number(row.input_type),
-        ingress_type: row.input_type === "1" ? "whip" : row.input_type === "2" ? "url" : "rtmp",
-        status: "active", // Database currently lacks the granular LiveKit state
-        room_name: unscopeName(row.room_name || "", projectId),
-        stream_key: row.stream_key,
-        url: row.url,
-      })),
-    );
+      return NextResponse.json(scoped.map((i) => mapIngress(i, projectId)));
+    } catch {
+      // Fallback to DB if LiveKit SDK fails
+      const rows = await query<{
+        id: string;
+        name: string;
+        input_type: string;
+        room_name: string | null;
+        stream_key: string | null;
+        url: string | null;
+      }>(
+        `SELECT id, name, input_type, room_name, stream_key, url
+         FROM ingress WHERE project_id = $1 ORDER BY created_at DESC`,
+        [projectId],
+      );
+      return NextResponse.json(
+        rows.rows.map((row) => ({
+          ingress_id: row.id,
+          name: row.name,
+          input_type: Number(row.input_type),
+          ingress_type: row.input_type === "1" ? "whip" : row.input_type === "2" ? "url" : "rtmp",
+          status: "inactive",
+          room_name: unscopeName(row.room_name || "", projectId),
+          stream_key: row.stream_key,
+          url: row.url,
+        })),
+      );
+    }
   }
 
   if (slug.length === 1 && slug[0] === "egresses") {
@@ -482,37 +492,68 @@ export async function GET(request: NextRequest, context: RouteContext) {
       );
     }
 
-    await syncAllResources();
+    // Call LiveKit SDK directly for real-time egress data
+    try {
+      const allEgresses = await livekit.egress.listEgress();
+      const prefix = projectPrefix(projectId);
 
-    const rows = await query<{
-      id: string;
-      room_name: string | null;
-      egress_type: string;
-      output_type: string | null;
-      output_url: string | null;
-      is_active: boolean;
-      created_at: string | Date;
-    }>(
-      `
-        SELECT id, room_name, egress_type, output_type, output_url, is_active, created_at
-        FROM egress
-        WHERE project_id = $1
-        ORDER BY created_at DESC
-      `,
-      [projectId],
-    );
+      // Filter to project scope
+      const scoped = allEgresses.filter(
+        (e) =>
+          e.roomName?.startsWith(prefix) ||
+          egressScopeState.byEgressId.get(e.egressId) === projectId,
+      );
 
-    return NextResponse.json(
-      rows.rows.map((row) => ({
-        egress_id: row.id,
-        room_name: unscopeName(row.room_name || "", projectId),
-        status: row.is_active ? "active" : "finished",
-        egress_type: row.egress_type,
-        output_type: row.output_type,
-        output_url: row.output_url,
-        started_at: new Date(row.created_at).getTime(),
-      })),
-    );
+      return NextResponse.json(
+        scoped.map((e) => {
+          const mapped = mapEgress(e, projectId);
+          // Determine egress type from LiveKit response
+          let egressType = "room_composite";
+          const raw = e as unknown as Record<string, unknown>;
+          if (raw.web) egressType = "web";
+          else if (raw.track) egressType = "track";
+          else if (raw.trackComposite) egressType = "track_composite";
+          else if (raw.participant) egressType = "participant";
+
+          // Extract file URL from file results
+          let fileUrl: string | null = null;
+          const fileResults = raw.fileResults as { filename?: string } | undefined;
+          if (fileResults?.filename) fileUrl = fileResults.filename;
+
+          return {
+            ...mapped,
+            type: egressType,
+            file_url: fileUrl,
+            url: raw.web ? String((raw.web as Record<string, unknown>).url || "") : null,
+          };
+        }),
+      );
+    } catch {
+      // Fallback to DB if LiveKit SDK fails
+      const rows = await query<{
+        id: string;
+        room_name: string | null;
+        egress_type: string;
+        output_type: string | null;
+        output_url: string | null;
+        is_active: boolean;
+        created_at: string | Date;
+      }>(
+        `SELECT id, room_name, egress_type, output_type, output_url, is_active, created_at
+         FROM egress WHERE project_id = $1 ORDER BY created_at DESC`,
+        [projectId],
+      );
+      return NextResponse.json(
+        rows.rows.map((row) => ({
+          egress_id: row.id,
+          room_name: unscopeName(row.room_name || "", projectId),
+          status: row.is_active ? "active" : "complete",
+          type: row.egress_type || "room_composite",
+          file_url: row.output_url,
+          started_at: new Date(row.created_at).getTime(),
+        })),
+      );
+    }
   }
 
   return NextResponse.json({ error: "Not Found" }, { status: 404 });
@@ -530,11 +571,29 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!name) {
       return NextResponse.json({ error: "Room name is required" }, { status: 400 });
     }
+
+    // Resolve project for scopped creation
+    const projectId = payload.project_id
+      ? await resolveScopedProject(claims, String(payload.project_id))
+      : null;
+
+    const scopedName = projectId ? scopeName(name, projectId) : name;
+
     const room = await livekit.room.createRoom({
-      name,
+      name: scopedName,
       emptyTimeout: Number(payload.empty_timeout || 0) || 0,
       maxParticipants: Number(payload.max_participants || 0) || 0,
+      metadata: encodeScopeMetadata({ project_id: projectId || undefined, owner_user_id: claims.sub })
     });
+
+    if (projectId) {
+      await query(
+        `INSERT INTO audit_logs (id, project_id, user_id, action, target_type, target_id, metadata, created_at)
+         VALUES ($1, $2, $3, 'room_created', 'room', $4, $5, NOW())`,
+        [randomUUID(), projectId, claims.sub, room.name, JSON.stringify(room)]
+      );
+    }
+
     return NextResponse.json(mapRoom(room), { status: 201 });
   }
 

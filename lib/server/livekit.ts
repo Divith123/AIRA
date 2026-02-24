@@ -76,3 +76,12 @@ export async function createLiveKitAccessToken(input: {
   );
   return token.toJwt();
 }
+export async function getLiveKitStats() {
+  const rooms = await livekit.room.listRooms();
+  const participantsCount = rooms.reduce((acc, room) => acc + room.numParticipants, 0);
+  return {
+    roomsCount: rooms.length,
+    participantsCount,
+    rooms,
+  };
+}

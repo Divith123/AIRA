@@ -47,12 +47,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </div>
                 <div className="flex items-center gap-4">
                     <ThemeToggle />
-                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-xs font-bold text-white">
-                        {user?.name?.[0]?.toUpperCase() || "U"}
+                    <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-primary via-primary to-accent border border-primary/20 text-primary-foreground flex items-center justify-center text-[11px] font-bold shadow-lg shadow-primary/20 ring-1 ring-white/10">
+                        {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : (user?.email?.[0]?.toUpperCase() || 'U')}
                     </div>
                 </div>
             </div>
-
 
             <div className="hidden md:block w-[260px] fixed inset-y-0 left-0 z-30">
                 <Sidebar user={user} />
@@ -79,7 +78,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
 
             <main className="flex-1 w-full md:ml-[260px] min-h-screen transition-all duration-300 pt-16 md:pt-0">
-                <div className="max-w-[1600px] mx-auto p-4 md:p-8">
+                <div className="max-w-[1600px] mx-auto p-4 md:p-6">
                     {children}
                 </div>
             </main>

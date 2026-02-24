@@ -23,6 +23,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
     display_name: string;
     image: string;
     entrypoint: string | null;
+    instructions: string | null;
+    welcome_message: string | null;
+    voice: string | null;
+    model: string | null;
+    config: string | null;
     env_vars: string | null;
     livekit_permissions: string | null;
     default_room_behavior: string | null;
@@ -39,6 +44,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
         a.display_name,
         a.image,
         a.entrypoint,
+        a.instructions,
+        a.welcome_message,
+        a.voice,
+        a.model,
+        a.config,
         a.env_vars,
         a.livekit_permissions,
         a.default_room_behavior,

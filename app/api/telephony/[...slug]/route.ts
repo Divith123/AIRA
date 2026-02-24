@@ -95,7 +95,7 @@ function mapOutboundTrunk(
     inbound_numbers_regex: trunk.numbers || [],
     outbound_address: trunk.address,
     sip_server: trunk.address,
-    sip_uri: null,
+    sip_uri: trunk.address ? `sip:${trunk.address}` : null,
     username: trunk.authUsername || null,
     created_at: new Date().toISOString(),
     project_id: scope.project_id || null,
@@ -735,10 +735,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const metadata =
       hasOwn(payload, "metadata") && payload.metadata !== undefined
         ? encodeScopeMetadata({
-            owner_user_id: claims.sub,
-            project_id: projectScope || projectIdFromMetadata || undefined,
-            client_metadata: payload.metadata ? String(payload.metadata) : null,
-          })
+          owner_user_id: claims.sub,
+          project_id: projectScope || projectIdFromMetadata || undefined,
+          client_metadata: payload.metadata ? String(payload.metadata) : null,
+        })
         : undefined;
 
     if (outboundTrunk) {

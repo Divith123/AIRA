@@ -214,7 +214,7 @@ async function handleLogin(request: NextRequest) {
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    name: user.name || "",
+    name: user.name || user.email.split("@")[0],
     is_admin: isAdmin,
   });
   const refreshToken = signRefreshToken(user.id);
@@ -267,7 +267,7 @@ async function handleRefresh(request: NextRequest) {
   const accessToken = signAccessToken({
     sub: user.id,
     email: user.email,
-    name: user.name || "",
+    name: user.name || user.email.split("@")[0],
     is_admin: isAdmin,
   });
   const newRefreshToken = signRefreshToken(user.id);

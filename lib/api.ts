@@ -653,15 +653,18 @@ export async function updateAIConfig(projectId: string, config: Partial<AIConfig
 
 export interface Agent {
     id: string;
+    agent_id: string;
     name: string;
     backend_id?: string;
     description?: string;
     instructions?: string;
+    welcome_message?: string;
     voice?: string;
     model?: string;
     status: string;
     created_at: string;
-    welcome_message?: string;
+    updated_at: string;
+    active_sessions?: number;
     allow_interruption?: boolean;
     image?: string;
     entrypoint?: string | null;
@@ -700,10 +703,12 @@ interface BackendAgent {
 function mapBackendAgent(agent: BackendAgent): Agent {
     return {
         id: agent.agent_id || agent.id,
+        agent_id: agent.agent_id,
         backend_id: agent.id,
         name: agent.display_name || agent.agent_id,
         status: agent.is_enabled ? "active" : "paused",
         created_at: agent.created_at,
+        active_sessions: (agent as any).active_sessions || 0,
         voice: "alloy",
         model: "gpt-4o-mini",
         image: agent.image,
@@ -714,6 +719,7 @@ function mapBackendAgent(agent: BackendAgent): Agent {
         auto_restart_policy: agent.auto_restart_policy,
         resource_limits: agent.resource_limits || {},
         is_enabled: agent.is_enabled,
+        updated_at: agent.updated_at || agent.created_at,
     };
 }
 
@@ -730,6 +736,7 @@ function toBackendAgentPayload(agent: Partial<Agent>): Record<string, unknown> {
     if (agent.resource_limits !== undefined) payload.resource_limits = agent.resource_limits;
     if (agent.is_enabled !== undefined) payload.is_enabled = agent.is_enabled;
     if (agent.status !== undefined) payload.status = agent.status;
+    if (agent.welcome_message !== undefined) payload.welcome_message = agent.welcome_message;
 
     // Forward optional UX fields for future backend support.
     if (agent.description !== undefined) payload.description = agent.description;
@@ -758,7 +765,7 @@ export async function createAgent(projectId: string, agent: Partial<Agent>): Pro
     return mapBackendAgent(created);
 }
 
-export async function updateAgent(projectId: string, agentId: string, agent: Partial<Agent>): Promise<Agent> {
+export async function updateAgent(projectId: string, agentId: string, agent: Partial<Omit<Agent, 'id' | 'created_at' | 'updated_at'>> & { welcome_message?: string | null }): Promise<Agent> {
     const updated = await apiFetch<BackendAgent>(`/api/projects/${projectId}/agents/${agentId}`, {
         method: "PUT",
         body: JSON.stringify(toBackendAgentPayload(agent)),
@@ -1574,6 +1581,19 @@ export async function createTeamMember(email: string, name: string, password: st
 
 export async function deleteTeamMember(userId: string): Promise<void> {
     await apiFetch(`/api/settings/members/${userId}`, { method: "DELETE" });
+}
+
+export interface LiveKitEnvConfig {
+    LIVEKIT_URL: string;
+    LIVEKIT_API_URL: string;
+    LIVEKIT_API_KEY: string;
+    LIVEKIT_API_SECRET: string;
+    provider: string;
+    status: string;
+}
+
+export async function getLiveKitEnvConfig(): Promise<LiveKitEnvConfig> {
+    return apiFetch<LiveKitEnvConfig>("/api/settings/livekit-config");
 }
 
 

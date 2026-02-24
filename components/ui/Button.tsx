@@ -14,15 +14,15 @@ const buttonVariants = cva(
         variants: {
             variant: {
                 primary:
-                    "bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-primary/40",
+                    "bg-primary text-primary-foreground hover:bg-primary/90 border border-primary/80 shadow-none",
                 secondary:
-                    "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                    "bg-secondary text-secondary-foreground hover:bg-secondary/80 border border-border",
                 outline:
-                    "border border-border bg-transparent text-foreground hover:bg-surface-hover hover:text-primary hover:border-primary/50",
+                    "border border-border bg-surface text-foreground hover:bg-surface-hover hover:text-foreground hover:border-border",
                 ghost:
                     "text-foreground hover:bg-surface-hover hover:text-primary",
                 danger:
-                    "bg-error/10 text-error hover:bg-error/20 border border-error/20",
+                    "bg-error text-white hover:bg-error/90 border border-error",
                 glass:
                     "glass text-foreground hover:bg-surface-hover hover:border-border hover:shadow-lg shadow-background/5"
             },
