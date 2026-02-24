@@ -4,6 +4,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import "./globals.css";
 
+const OUTFIT_FONT_URL = "https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap";
+
 export const metadata: Metadata = {
   title: "AIRA",
   description:
@@ -22,7 +24,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans antialiased">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href={OUTFIT_FONT_URL} rel="stylesheet" />
+      </head>
+      <body className="font-sans antialiased" style={{ fontFamily: "'Outfit', sans-serif" }}>
         <ThemeProvider>
           <Providers>
             <ErrorBoundary>

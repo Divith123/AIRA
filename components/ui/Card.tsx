@@ -8,11 +8,11 @@ function cn(...inputs: (string | undefined | null | false)[]) {
 }
 
 const cardVariants = cva(
-    "rounded-xl border transition-all duration-300 overflow-hidden",
+    "rounded-xl border transition-all duration-200 overflow-hidden",
     {
         variants: {
             variant: {
-                default: "bg-surface border-border shadow-xl text-foreground",
+                default: "bg-surface border-border text-foreground shadow-sm",
                 glass: "glass-card text-foreground",
                 outline: "border-border bg-transparent text-foreground",
                 gradient: "bg-gradient-to-br from-surface to-background border-border",
@@ -29,7 +29,7 @@ const cardVariants = cva(
             }
         },
         defaultVariants: {
-            variant: "glass",
+            variant: "default",
             hoverEffect: false,
             padding: "md",
         },

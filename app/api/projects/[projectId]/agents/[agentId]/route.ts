@@ -35,6 +35,30 @@ function normalizeUpdatePayload(payload: Record<string, unknown>) {
           ? null
           : String(payload.entrypoint)
         : undefined,
+    instructions:
+      payload.instructions !== undefined
+        ? payload.instructions === null
+          ? null
+          : String(payload.instructions)
+        : undefined,
+    welcome_message:
+      payload.welcome_message !== undefined
+        ? payload.welcome_message === null
+          ? null
+          : String(payload.welcome_message)
+        : undefined,
+    voice:
+      payload.voice !== undefined
+        ? payload.voice === null
+          ? null
+          : String(payload.voice)
+        : undefined,
+    model:
+      payload.model !== undefined
+        ? payload.model === null
+          ? null
+          : String(payload.model)
+        : undefined,
     env_vars:
       payload.environment !== undefined || payload.env_vars !== undefined
         ? JSON.stringify(
@@ -69,6 +93,14 @@ function normalizeUpdatePayload(payload: Record<string, unknown>) {
               : {},
           )
         : null,
+    config:
+      payload.config !== undefined
+        ? JSON.stringify(
+            payload.config && typeof payload.config === "object"
+              ? payload.config
+              : {},
+          )
+        : null,
     is_enabled: enabled,
   };
 }
@@ -86,6 +118,11 @@ async function resolveScope(request: NextRequest, context: RouteContext) {
     display_name: string;
     image: string;
     entrypoint: string | null;
+    instructions: string | null;
+    welcome_message: string | null;
+    voice: string | null;
+    model: string | null;
+    config: string | null;
     env_vars: string | null;
     livekit_permissions: string | null;
     default_room_behavior: string | null;
@@ -102,6 +139,11 @@ async function resolveScope(request: NextRequest, context: RouteContext) {
         display_name,
         image,
         entrypoint,
+        instructions,
+        welcome_message,
+        voice,
+        model,
+        config,
         env_vars,
         livekit_permissions,
         default_room_behavior,
@@ -140,6 +182,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     display_name: string;
     image: string;
     entrypoint: string | null;
+    instructions: string | null;
+    welcome_message: string | null;
+    voice: string | null;
+    model: string | null;
+    config: string | null;
     env_vars: string | null;
     livekit_permissions: string | null;
     default_room_behavior: string | null;
@@ -155,12 +202,17 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         display_name = COALESCE($2, display_name),
         image = COALESCE($3, image),
         entrypoint = $4,
-        env_vars = COALESCE($5, env_vars),
-        livekit_permissions = COALESCE($6, livekit_permissions),
-        default_room_behavior = COALESCE($7, default_room_behavior),
-        auto_restart_policy = COALESCE($8, auto_restart_policy),
-        resource_limits = COALESCE($9, resource_limits),
-        is_enabled = COALESCE($10, is_enabled),
+        instructions = COALESCE($5, instructions),
+        welcome_message = COALESCE($6, welcome_message),
+        voice = COALESCE($7, voice),
+        model = COALESCE($8, model),
+        config = COALESCE($9, config),
+        env_vars = COALESCE($10, env_vars),
+        livekit_permissions = COALESCE($11, livekit_permissions),
+        default_room_behavior = COALESCE($12, default_room_behavior),
+        auto_restart_policy = COALESCE($13, auto_restart_policy),
+        resource_limits = COALESCE($14, resource_limits),
+        is_enabled = COALESCE($15, is_enabled),
         updated_at = NOW()
       WHERE id = $1
       RETURNING
@@ -169,6 +221,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         display_name,
         image,
         entrypoint,
+        instructions,
+        welcome_message,
+        voice,
+        model,
+        config,
         env_vars,
         livekit_permissions,
         default_room_behavior,
@@ -183,6 +240,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       update.display_name,
       update.image,
       update.entrypoint === undefined ? scope.agent.entrypoint : update.entrypoint,
+      update.instructions === undefined ? scope.agent.instructions : update.instructions,
+      update.welcome_message === undefined ? scope.agent.welcome_message : update.welcome_message,
+      update.voice === undefined ? scope.agent.voice : update.voice,
+      update.model === undefined ? scope.agent.model : update.model,
+      update.config === undefined ? scope.agent.config : update.config,
       update.env_vars,
       update.livekit_permissions,
       update.default_room_behavior,

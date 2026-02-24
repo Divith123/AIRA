@@ -4,13 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { query } from "@/lib/server/db";
 import { serverEnv } from "@/lib/server/env";
 
-function projectIdFromRoom(roomName: string) {
-  if (!roomName.startsWith("prj-")) return null;
-  const rest = roomName.slice(4);
-  const dash = rest.indexOf("-");
-  if (dash <= 0) return null;
-  return rest.slice(0, dash);
-}
+import { extractProjectIdFromRoom, getCountryFromIp } from "@/lib/server/session-utils";
 
 function verifyHmacSignature(signature: string, body: string) {
   const hmac = createHmac("sha256", serverEnv.LIVEKIT_API_SECRET);
@@ -72,7 +66,7 @@ export async function POST(request: NextRequest) {
       const roomName = String(room.name || "");
       const sid = String(room.sid || "");
       if (roomName && sid) {
-        const projectId = projectIdFromRoom(roomName);
+        const projectId = extractProjectIdFromRoom(roomName);
         await query(
           `
             INSERT INTO sessions (
@@ -103,7 +97,7 @@ export async function POST(request: NextRequest) {
     } else if (eventType.startsWith("egress_")) {
       const egress = (payload.egress || {}) as Record<string, unknown>;
       const roomName = String(egress.roomName || "");
-      const projectId = projectIdFromRoom(roomName);
+      const projectId = extractProjectIdFromRoom(roomName);
       const egressId = String(egress.egressId || "");
       const status = String(egress.status || "");
       const type = String(egress.outputType || "unknown");
@@ -136,7 +130,7 @@ export async function POST(request: NextRequest) {
     } else if (eventType.startsWith("ingress_")) {
       const ingress = (payload.ingress || {}) as Record<string, unknown>;
       const roomName = String(ingress.roomName || "");
-      const projectId = projectIdFromRoom(roomName);
+      const projectId = extractProjectIdFromRoom(roomName);
       const ingressId = String(ingress.ingressId || "");
       const name = String(ingress.name || "");
       const type = String(ingress.inputType || "unknown");
@@ -168,16 +162,17 @@ export async function POST(request: NextRequest) {
           const clientInfo = (participant.client || {}) as Record<string, unknown>;
           const platform = String(clientInfo.os || "unknown").toLowerCase();
           const browser = String(clientInfo.browser || "unknown").toLowerCase();
-          const projectId = projectIdFromRoom(roomName);
+          const country = await getCountryFromIp(String(clientInfo.address || ""));
+          const projectId = extractProjectIdFromRoom(roomName);
 
           await query(
             `
               INSERT INTO participant_records(
-            id, session_id, identity, status, joined_at, platform, browser, project_id
-          )
-              VALUES($1, $2, $3, 'active', NOW(), $4, $5, $6)
+                id, session_id, identity, status, joined_at, platform, browser, project_id, country
+              )
+              VALUES($1, $2, $3, 'active', NOW(), $4, $5, $6, $7)
             `,
-            [randomUUID(), sessionId, identity, platform, browser, projectId],
+            [randomUUID(), sessionId, identity, platform, browser, projectId, country],
           );
 
           await query(

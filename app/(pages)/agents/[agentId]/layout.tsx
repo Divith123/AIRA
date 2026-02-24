@@ -1,21 +1,11 @@
-"use client";
+import type { ReactNode } from "react";
+import { redirect } from "next/navigation";
 
-import AgentLayout from "../../../../components/agent/AgentLayout";
-
-export default function Layout({
-    children,
+export default function AgentDetailLayout({
+  children: _children,
 }: {
-    children: React.ReactNode;
+  children: ReactNode;
 }) {
-
-
-    // React.use() wrapper to unwrap params in Next.js 15+ if needed, 
-    // but for standard client component usage we can use them directly or via hook.
-    // Since this is a client component layout, props are passed.
-
-    return (
-        <AgentLayout>
-            {children}
-        </AgentLayout>
-    );
+  void _children;
+  redirect("/dashboard");
 }

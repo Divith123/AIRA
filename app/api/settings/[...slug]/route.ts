@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { hashPassword } from "@/lib/server/auth";
 import { query } from "@/lib/server/db";
+import { serverEnv } from "@/lib/server/env";
 import { requireAuth } from "@/lib/server/guards";
 import { resolveOwnedProjectId } from "@/lib/server/project";
 
@@ -257,6 +258,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
         })
         .filter(Boolean),
     );
+  }
+
+  if (slug.length === 1 && slug[0] === "livekit-config") {
+    return NextResponse.json({
+      LIVEKIT_URL: serverEnv.LIVEKIT_HOST,
+      LIVEKIT_API_URL: serverEnv.LIVEKIT_HOST,
+      LIVEKIT_API_KEY: serverEnv.LIVEKIT_API_KEY,
+      LIVEKIT_API_SECRET: serverEnv.LIVEKIT_API_SECRET,
+      provider: "LiveKit",
+      status: "active",
+    });
   }
 
   return NextResponse.json({ error: "Not Found" }, { status: 404 });
